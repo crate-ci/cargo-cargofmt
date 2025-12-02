@@ -5,6 +5,7 @@
 #![warn(clippy::print_stdout)]
 
 pub mod config;
+pub mod formatting;
 
 #[doc = include_str!("../README.md")]
 #[cfg(doctest)]
