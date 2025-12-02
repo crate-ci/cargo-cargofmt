@@ -1,8 +1,8 @@
 # These settings are synced to GitHub by https://probot.github.io/apps/settings/
 
 repository:
-  description: "DESCRIPTION"
-  homepage: "https://docs.rs/PROJECT"
+  description: "Cargo file formatter"
+  homepage: "https://docs.rs/cargo-cargofmt"
   topics: ""
   has_issues: true
   has_projects: false
