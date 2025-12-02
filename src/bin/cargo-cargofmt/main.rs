@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::env;
 use std::fs;
@@ -9,6 +10,8 @@ use std::str;
 
 use cargo_metadata::Edition;
 use cargo_metadata::Metadata;
+use cargo_metadata::Package;
+use cargo_metadata::PackageId;
 use cargo_metadata::TargetKind;
 use clap::CommandFactory;
 use clap::Parser;
@@ -163,43 +166,44 @@ fn format_crate(
     manifest_path: Option<&Path>,
 ) -> Result<i32, io::Error> {
     let metadata = get_cargo_metadata(manifest_path)?;
-    let targets = get_targets(strategy, manifest_path, &metadata)?;
+    let packages = get_packages(strategy, manifest_path, &metadata)?;
+    let _targets = to_targets(&packages);
 
     println!("{check:?}");
-    println!("{targets:?}");
+    println!("{packages:#?}");
 
     Ok(SUCCESS)
 }
 
 /// Based on the specified `CargoFmtStrategy`, returns a set of main source files.
-fn get_targets(
+fn get_packages<'m>(
     strategy: &CargoFmtStrategy,
     manifest_path: Option<&Path>,
-    metadata: &Metadata,
-) -> Result<BTreeSet<Target>, io::Error> {
-    let mut targets = BTreeSet::new();
+    metadata: &'m Metadata,
+) -> Result<BTreeMap<PackageId, &'m Package>, io::Error> {
+    let mut packages = BTreeMap::new();
 
     match *strategy {
-        CargoFmtStrategy::Root => get_targets_root_only(manifest_path, metadata, &mut targets)?,
+        CargoFmtStrategy::Root => get_packages_root_only(manifest_path, metadata, &mut packages)?,
         CargoFmtStrategy::All => {
-            get_targets_recursive(metadata, &mut targets, &mut BTreeSet::new())?;
+            get_packages_recursive(metadata, &mut packages)?;
         }
         CargoFmtStrategy::Some(ref hitlist) => {
-            get_targets_with_hitlist(metadata, hitlist, &mut targets)?;
+            get_packages_with_hitlist(metadata, hitlist, &mut packages)?;
         }
     }
 
-    if targets.is_empty() {
+    if packages.is_empty() {
         Err(io::Error::other("Failed to find targets".to_owned()))
     } else {
-        Ok(targets)
+        Ok(packages)
     }
 }
 
-fn get_targets_root_only(
+fn get_packages_root_only<'m>(
     manifest_path: Option<&Path>,
-    metadata: &Metadata,
-    targets: &mut BTreeSet<Target>,
+    metadata: &'m Metadata,
+    packages: &mut BTreeMap<PackageId, &'m Package>,
 ) -> Result<(), io::Error> {
     let workspace_root_path = PathBuf::from(&metadata.workspace_root).canonicalize()?;
     let (in_workspace_root, current_dir_manifest) = if let Some(target_manifest) = manifest_path {
@@ -215,9 +219,8 @@ fn get_targets_root_only(
         )
     };
 
-    let package_targets = match metadata.packages.len() {
-        1 => metadata.packages.iter().next().unwrap().targets.clone(),
-        _ => metadata
+    packages.extend(
+        metadata
             .packages
             .iter()
             .filter(|p| {
@@ -227,24 +230,20 @@ fn get_targets_root_only(
                         .unwrap_or_default()
                         == current_dir_manifest
             })
-            .flat_map(|p| p.targets.clone())
-            .collect(),
-    };
-
-    for target in package_targets {
-        targets.insert(Target::from_target(&target));
-    }
+            .map(|p| (p.id.clone(), p)),
+    );
 
     Ok(())
 }
 
-fn get_targets_recursive(
-    metadata: &Metadata,
-    targets: &mut BTreeSet<Target>,
-    visited: &mut BTreeSet<String>,
+fn get_packages_recursive<'m>(
+    metadata: &'m Metadata,
+    packages: &mut BTreeMap<PackageId, &'m Package>,
 ) -> Result<(), io::Error> {
     for package in &metadata.packages {
-        add_targets(&package.targets, targets);
+        if packages.insert(package.id.clone(), package).is_none() {
+            continue;
+        }
 
         // Look for local dependencies using information available since cargo v1.51
         // It's theoretically possible someone could use a newer version of rustfmt with
@@ -253,19 +252,18 @@ fn get_targets_recursive(
         // confirm their version of `cargo` (not `cargo-fmt`) is >= v1.51
         // https://github.com/rust-lang/cargo/pull/8994
         for dependency in &package.dependencies {
-            if dependency.path.is_none() || visited.contains(&dependency.name) {
+            let Some(path) = dependency.path.as_ref() else {
                 continue;
-            }
+            };
 
-            let manifest_path = PathBuf::from(dependency.path.as_ref().unwrap()).join("Cargo.toml");
+            let manifest_path = path.join("Cargo.toml");
             if manifest_path.exists()
                 && !metadata
                     .packages
                     .iter()
                     .any(|p| p.manifest_path.eq(&manifest_path))
             {
-                visited.insert(dependency.name.clone());
-                get_targets_recursive(metadata, targets, visited)?;
+                get_packages_recursive(metadata, packages)?;
             }
         }
     }
@@ -273,18 +271,16 @@ fn get_targets_recursive(
     Ok(())
 }
 
-fn get_targets_with_hitlist(
-    metadata: &Metadata,
+fn get_packages_with_hitlist<'m>(
+    metadata: &'m Metadata,
     hitlist: &[String],
-    targets: &mut BTreeSet<Target>,
+    packages: &mut BTreeMap<PackageId, &'m Package>,
 ) -> Result<(), io::Error> {
     let mut workspace_hitlist: BTreeSet<&String> = BTreeSet::from_iter(hitlist);
 
     for package in &metadata.packages {
         if workspace_hitlist.remove(&package.name) {
-            for target in &package.targets {
-                targets.insert(Target::from_target(target));
-            }
+            packages.insert(package.id.clone(), package);
         }
     }
 
@@ -299,10 +295,14 @@ fn get_targets_with_hitlist(
     }
 }
 
-fn add_targets(target_paths: &[cargo_metadata::Target], targets: &mut BTreeSet<Target>) {
-    for target in target_paths {
-        targets.insert(Target::from_target(target));
+fn to_targets(packages: &BTreeMap<PackageId, &Package>) -> BTreeSet<Target> {
+    let mut targets = BTreeSet::new();
+    for package in packages.values() {
+        for target in &package.targets {
+            targets.insert(Target::from_target(target));
+        }
     }
+    targets
 }
 
 fn get_cargo_metadata(manifest_path: Option<&Path>) -> Result<Metadata, io::Error> {
