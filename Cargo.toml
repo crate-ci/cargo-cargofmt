@@ -128,7 +128,9 @@ cargo-util = "0.2.20"
 cargo_metadata = "0.19.0"
 clap = { version = "4.5.53", features = ["derive"] }
 clap-cargo = "0.15.2"
+serde = { version = "1.0.228", features = ["derive"] }
 snapbox = { version = "0.6.23", default-features = false, features = ["diff"] }
+toml = "0.9.8"
 toml_edit = "0.23.7"
 
 [target.'cfg(false)'.dependencies]
