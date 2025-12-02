@@ -65,9 +65,9 @@ fn execute() -> i32 {
             print_usage_to_stderr("the manifest-path must be a path to a Cargo.toml file");
             return FAILURE;
         }
-        handle_command_status(format_crate(&strategy, opts.check, Some(&manifest_path)))
+        handle_command_status(format_crates(&strategy, opts.check, Some(&manifest_path)))
     } else {
-        handle_command_status(format_crate(&strategy, opts.check, None))
+        handle_command_status(format_crates(&strategy, opts.check, None))
     }
 }
 
@@ -160,7 +160,7 @@ impl Hash for Target {
     }
 }
 
-fn format_crate(
+fn format_crates(
     strategy: &CargoFmtStrategy,
     check: bool,
     manifest_path: Option<&Path>,
