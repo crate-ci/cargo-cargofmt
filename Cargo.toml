@@ -5,7 +5,7 @@ resolver = "2"
 repository = "https://github.com/crate-ci/cargo-cargofmt"
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.65.0"  # MSRV
+rust-version = "1.85.0"  # MSRV
 include = [
   "build.rs",
   "src/**/*",
@@ -123,9 +123,15 @@ pre-release-replacements = [
 default = []
 
 [dependencies]
+cargo_metadata = "0.19.0"
+clap = { version = "4.5.53", features = ["derive"] }
+clap-cargo = "0.15.2"
+
+[target.'cfg(false)'.dependencies]
+serde_json = "1.0.145"
 
 [dev-dependencies]
-automod = "1.0.14"
+automod = "1.0.15"
 
 [lints]
 workspace = true
