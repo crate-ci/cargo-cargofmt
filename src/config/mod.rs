@@ -2,10 +2,14 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
+pub mod options;
+
 #[derive(serde::Deserialize)]
 #[serde(default)]
 #[derive(Default)]
-pub struct Config {}
+pub struct Config {
+    pub newline_style: options::NewlineStyle,
+}
 
 pub fn load_config(search_start: &Path) -> Result<Config, io::Error> {
     let Some(path) = find_config(search_start) else {

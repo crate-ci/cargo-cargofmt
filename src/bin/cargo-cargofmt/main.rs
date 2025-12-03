@@ -184,11 +184,19 @@ fn format_crates(
 }
 
 fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>> {
-    let _config = cargo_cargofmt::config::load_config(package.manifest_path.as_std_path())?;
+    let config = cargo_cargofmt::config::load_config(package.manifest_path.as_std_path())?;
 
-    let input = cargo_util::paths::read(package.manifest_path.as_std_path())
+    let raw_input_text = cargo_util::paths::read(package.manifest_path.as_std_path())
         .map_err(io::Error::other)
         .map_err(Some)?;
+    let mut input = raw_input_text.clone();
+
+    cargo_cargofmt::formatting::apply_newline_style(
+        config.newline_style,
+        &mut input,
+        &raw_input_text,
+    );
+
     let document = input
         .parse::<toml_edit::DocumentMut>()
         .map_err(io::Error::other)
