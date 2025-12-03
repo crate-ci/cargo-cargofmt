@@ -65,9 +65,9 @@ fn execute() -> i32 {
             print_usage_to_stderr("the manifest-path must be a path to a Cargo.toml file");
             return FAILURE;
         }
-        handle_command_status(format_crate(&strategy, opts.check, Some(&manifest_path)))
+        handle_command_status(format_crates(&strategy, opts.check, Some(&manifest_path)))
     } else {
-        handle_command_status(format_crate(&strategy, opts.check, None))
+        handle_command_status(format_crates(&strategy, opts.check, None))
     }
 }
 
@@ -160,7 +160,7 @@ impl Hash for Target {
     }
 }
 
-fn format_crate(
+fn format_crates(
     strategy: &CargoFmtStrategy,
     check: bool,
     manifest_path: Option<&Path>,
@@ -169,10 +169,54 @@ fn format_crate(
     let packages = get_packages(strategy, manifest_path, &metadata)?;
     let _targets = to_targets(&packages);
 
-    println!("{check:?}");
-    println!("{packages:#?}");
+    let mut errors = 0;
+    for package in packages.values() {
+        if let Err(err) = format_crate(check, package) {
+            if let Some(err) = err {
+                anstream::eprintln!("{err}");
+            }
+            errors += 1;
+        }
+    }
 
-    Ok(SUCCESS)
+    let code = if 0 < errors { FAILURE } else { SUCCESS };
+    Ok(code)
+}
+
+fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>> {
+    let input = cargo_util::paths::read(package.manifest_path.as_std_path())
+        .map_err(io::Error::other)
+        .map_err(Some)?;
+    let document = input
+        .parse::<toml_edit::DocumentMut>()
+        .map_err(io::Error::other)
+        .map_err(Some)?;
+
+    let formatted = document.to_string();
+    if input != formatted {
+        if check {
+            let name = package.manifest_path.as_std_path();
+            let name = name.to_string_lossy();
+            let mut stream = String::new();
+            snapbox::report::write_diff(
+                &mut stream,
+                &input.into(),
+                &formatted.into(),
+                Some(&name),
+                None,
+                snapbox::report::Palette::color(),
+            )
+            .map_err(io::Error::other)
+            .map_err(Some)?;
+            anstream::println!("{stream}");
+        } else {
+            cargo_util::paths::write_atomic(package.manifest_path.as_std_path(), formatted)
+                .map_err(io::Error::other)
+                .map_err(Some)?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Based on the specified `CargoFmtStrategy`, returns a set of main source files.
