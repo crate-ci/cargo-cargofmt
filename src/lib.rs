@@ -4,6 +4,8 @@
 #![warn(clippy::print_stderr)]
 #![warn(clippy::print_stdout)]
 
+pub mod config;
+
 #[doc = include_str!("../README.md")]
 #[cfg(doctest)]
 pub struct ReadmeDoctests;

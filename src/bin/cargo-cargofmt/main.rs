@@ -184,6 +184,8 @@ fn format_crates(
 }
 
 fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>> {
+    let _config = cargo_cargofmt::config::load_config(package.manifest_path.as_std_path())?;
+
     let input = cargo_util::paths::read(package.manifest_path.as_std_path())
         .map_err(io::Error::other)
         .map_err(Some)?;
