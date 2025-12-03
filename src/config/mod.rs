@@ -8,6 +8,7 @@ pub mod options;
 #[serde(default)]
 #[derive(Default)]
 pub struct Config {
+    pub disable_all_formatting: bool,
     pub newline_style: options::NewlineStyle,
 }
 
