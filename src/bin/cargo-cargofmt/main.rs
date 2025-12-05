@@ -222,6 +222,16 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
     let raw_input_text = cargo_util::paths::read(package.manifest_path.as_std_path())
         .map_err(io::Error::other)
         .map_err(Some)?;
+
+    if !config.format_generated_files
+        && cargo_cargofmt::formatting::is_generated_file(
+            &raw_input_text,
+            config.generated_marker_line_search_limit,
+        )
+    {
+        return Ok(());
+    }
+
     let mut input = raw_input_text.clone();
 
     // Normalize for easier manipulation
