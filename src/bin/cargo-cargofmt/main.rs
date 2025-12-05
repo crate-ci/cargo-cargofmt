@@ -224,8 +224,9 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
         .map_err(Some)?;
     let mut input = raw_input_text.clone();
 
+    // Normalize for easier manipulation
     cargo_cargofmt::formatting::apply_newline_style(
-        config.newline_style,
+        cargo_cargofmt::config::options::NewlineStyle::Unix,
         &mut input,
         &raw_input_text,
     );
@@ -235,7 +236,14 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
         .map_err(io::Error::other)
         .map_err(Some)?;
 
-    let formatted = document.to_string();
+    let mut formatted = document.to_string();
+
+    cargo_cargofmt::formatting::apply_newline_style(
+        config.newline_style,
+        &mut formatted,
+        &raw_input_text,
+    );
+
     if input != formatted {
         if check {
             let name = package.manifest_path.as_std_path();
