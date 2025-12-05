@@ -179,8 +179,37 @@ fn format_crates(
         }
     }
 
+    if !rustfmt(strategy, check, manifest_path) {
+        errors += 1;
+    }
+
     let code = if 0 < errors { FAILURE } else { SUCCESS };
     Ok(code)
+}
+
+fn rustfmt(strategy: &CargoFmtStrategy, check: bool, manifest_path: Option<&Path>) -> bool {
+    let cargo = env::var_os("CARGO").unwrap_or_else(|| std::ffi::OsString::from("cargo"));
+    let mut cmd = std::process::Command::new(cargo);
+    cmd.arg("fmt");
+    if check {
+        cmd.arg("--check");
+    }
+    match strategy {
+        CargoFmtStrategy::All => {
+            cmd.arg("--all");
+        }
+        CargoFmtStrategy::Some(p) => {
+            for p in p {
+                cmd.arg("--package").arg(p);
+            }
+        }
+        CargoFmtStrategy::Root => {}
+    }
+    if let Some(manifest_path) = manifest_path {
+        cmd.arg("--manifest-path").arg(manifest_path);
+    }
+
+    cmd.status().map(|s| s.success()).unwrap_or(false)
 }
 
 fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>> {
