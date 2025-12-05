@@ -6,10 +6,22 @@ pub mod options;
 
 #[derive(serde::Deserialize)]
 #[serde(default)]
-#[derive(Default)]
 pub struct Config {
     pub disable_all_formatting: bool,
     pub newline_style: options::NewlineStyle,
+    pub format_generated_files: bool,
+    pub generated_marker_line_search_limit: usize,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            disable_all_formatting: false,
+            newline_style: options::NewlineStyle::default(),
+            format_generated_files: false,
+            generated_marker_line_search_limit: 5,
+        }
+    }
 }
 
 pub fn load_config(search_start: &Path) -> Result<Config, io::Error> {
