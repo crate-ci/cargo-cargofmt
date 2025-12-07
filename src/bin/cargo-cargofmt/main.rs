@@ -241,12 +241,9 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
         &raw_input_text,
     );
 
-    let document = input
-        .parse::<toml_edit::DocumentMut>()
-        .map_err(io::Error::other)
-        .map_err(Some)?;
+    let tokens = cargo_cargofmt::toml::TomlTokens::parse(&input);
 
-    let mut formatted = document.to_string();
+    let mut formatted = tokens.to_string();
 
     cargo_cargofmt::formatting::apply_newline_style(
         config.newline_style,
