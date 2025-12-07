@@ -241,7 +241,9 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
         &raw_input_text,
     );
 
-    let tokens = cargo_cargofmt::toml::TomlTokens::parse(&input);
+    let mut tokens = cargo_cargofmt::toml::TomlTokens::parse(&input);
+
+    cargo_cargofmt::formatting::trim_trailing_spaces(&mut tokens);
 
     let mut formatted = tokens.to_string();
 
