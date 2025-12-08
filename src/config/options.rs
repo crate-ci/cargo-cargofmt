@@ -1,4 +1,4 @@
-#[derive(Copy, Clone, Default, serde::Deserialize)]
+#[derive(Copy, Clone, Default, Debug, serde::Deserialize)]
 pub enum NewlineStyle {
     /// Auto-detect based on the raw source input.
     #[default]

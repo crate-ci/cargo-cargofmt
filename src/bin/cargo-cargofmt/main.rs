@@ -49,11 +49,14 @@ struct Opts {
 }
 
 fn main() {
+    let _guard = setup_logger();
+
     let exit_status = execute();
     io::stdout().flush().unwrap();
     std::process::exit(exit_status);
 }
 
+#[tracing::instrument]
 fn execute() -> i32 {
     let opts = CargoOpts::parse();
     let CargoOpts::CargoFmt(opts) = opts;
@@ -69,6 +72,66 @@ fn execute() -> i32 {
     } else {
         handle_command_status(format_crates(&strategy, opts.check, None))
     }
+}
+
+fn setup_logger() -> Option<ChromeFlushGuard> {
+    use tracing_subscriber::prelude::*;
+
+    let env = tracing_subscriber::EnvFilter::from_env("CARGO_LOG");
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .with_timer(tracing_subscriber::fmt::time::Uptime::default())
+        .with_ansi(io::IsTerminal::is_terminal(&io::stderr()))
+        .with_writer(io::stderr)
+        .with_filter(env);
+
+    let (profile_layer, profile_guard) = chrome_layer();
+
+    let registry = tracing_subscriber::registry()
+        .with(fmt_layer)
+        .with(profile_layer);
+    registry.init();
+    profile_guard
+}
+
+#[cfg(target_has_atomic = "64")]
+type ChromeFlushGuard = tracing_chrome::FlushGuard;
+#[cfg(target_has_atomic = "64")]
+fn chrome_layer<S>() -> (
+    Option<tracing_chrome::ChromeLayer<S>>,
+    Option<ChromeFlushGuard>,
+)
+where
+    S: tracing::Subscriber
+        + for<'span> tracing_subscriber::registry::LookupSpan<'span>
+        + Send
+        + Sync,
+{
+    #![allow(clippy::disallowed_methods)]
+
+    if env_to_bool(env::var_os("CARGO_LOG_PROFILE").as_deref()) {
+        let capture_args = env_to_bool(env::var_os("CARGO_LOG_PROFILE_CAPTURE_ARGS").as_deref());
+        let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new()
+            .include_args(capture_args)
+            .build();
+        (Some(layer), Some(guard))
+    } else {
+        (None, None)
+    }
+}
+
+#[cfg(not(target_has_atomic = "64"))]
+type ChromeFlushGuard = ();
+#[cfg(not(target_has_atomic = "64"))]
+fn chrome_layer() -> (
+    Option<tracing_subscriber::layer::Identity>,
+    Option<ChromeFlushGuard>,
+) {
+    (None, None)
+}
+
+#[cfg(target_has_atomic = "64")]
+fn env_to_bool(os: Option<&std::ffi::OsStr>) -> bool {
+    matches!(os.and_then(|os| os.to_str()), Some("1") | Some("true"))
 }
 
 fn print_usage_to_stderr(reason: &str) {
@@ -160,6 +223,7 @@ impl Hash for Target {
     }
 }
 
+#[tracing::instrument]
 fn format_crates(
     strategy: &CargoFmtStrategy,
     check: bool,
@@ -187,6 +251,7 @@ fn format_crates(
     Ok(code)
 }
 
+#[tracing::instrument]
 fn rustfmt(strategy: &CargoFmtStrategy, check: bool, manifest_path: Option<&Path>) -> bool {
     let cargo = env::var_os("CARGO").unwrap_or_else(|| std::ffi::OsString::from("cargo"));
     let mut cmd = std::process::Command::new(cargo);
@@ -212,6 +277,7 @@ fn rustfmt(strategy: &CargoFmtStrategy, check: bool, manifest_path: Option<&Path
     cmd.status().map(|s| s.success()).unwrap_or(false)
 }
 
+#[tracing::instrument]
 fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>> {
     let config = cargo_cargofmt::config::load_config(package.manifest_path.as_std_path())?;
 
@@ -280,6 +346,7 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
 }
 
 /// Based on the specified `CargoFmtStrategy`, returns a set of main source files.
+#[tracing::instrument]
 fn get_packages<'m>(
     strategy: &CargoFmtStrategy,
     manifest_path: Option<&Path>,
@@ -409,6 +476,7 @@ fn to_targets(packages: &BTreeMap<PackageId, &Package>) -> BTreeSet<Target> {
     targets
 }
 
+#[tracing::instrument]
 fn get_cargo_metadata(manifest_path: Option<&Path>) -> Result<Metadata, io::Error> {
     let mut cmd = cargo_metadata::MetadataCommand::new();
     cmd.no_deps();

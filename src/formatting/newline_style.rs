@@ -6,6 +6,7 @@ use crate::config::options::NewlineStyle;
 ///
 /// If the style is set to `Auto` and `raw_input_text` contains no
 /// newlines, the `Native` style will be used.
+#[tracing::instrument]
 pub fn apply_newline_style(
     newline_style: NewlineStyle,
     formatted_text: &mut String,
