@@ -1,4 +1,42 @@
-pub fn trim_trailing_spaces(_tokens: &mut crate::toml::TomlTokens<'_>) {}
+use std::borrow::Cow;
+
+pub fn trim_trailing_spaces(tokens: &mut crate::toml::TomlTokens<'_>) {
+    let mut to_remove = Vec::new();
+    if let Some(last) = tokens.tokens.last() {
+        if last.kind == crate::toml::TokenKind::Whitespace {
+            to_remove.push(tokens.len() - 1);
+        }
+    }
+    to_remove.extend(
+        tokens
+            .rfind_all(|t| t.kind == crate::toml::TokenKind::Newline)
+            .filter_map(|nl_i| {
+                let prev_i = nl_i.checked_sub(1)?;
+                if tokens.tokens[prev_i].kind == crate::toml::TokenKind::Whitespace {
+                    Some(prev_i)
+                } else {
+                    None
+                }
+            }),
+    );
+    for i in to_remove {
+        tokens.tokens.remove(i);
+    }
+
+    let to_trim = tokens
+        .rfind_all(|t| t.kind == crate::toml::TokenKind::Comment)
+        .collect::<Vec<_>>();
+    for i in to_trim {
+        tokens.tokens[i].raw = match std::mem::take(&mut tokens.tokens[i].raw) {
+            Cow::Borrowed(s) => Cow::Borrowed(s.trim_end()),
+            Cow::Owned(mut s) => {
+                let trimmed = s.trim_end();
+                s.replace_range(0..trimmed.len(), "");
+                Cow::Owned(s)
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -34,7 +72,7 @@ mod test {
 
     #[test]
     fn whitespace() {
-        valid("    ", str!["    "]);
+        valid("    ", str![""]);
     }
 
     #[test]
@@ -43,8 +81,8 @@ mod test {
             "\n  \n  ",
             str![[r#"
 
-  
-  
+
+
 "#]],
         );
     }
@@ -54,8 +92,8 @@ mod test {
         valid(
             "  \n  \n",
             str![[r#"
-  
-  
+
+
 
 "#]],
         );
@@ -76,14 +114,14 @@ after_array_bits = [
 "#,
             str![[r#"
 
-  
-after_value = "value"  
-after_comment = "value"  # Hello  
-[after_table]  
-after_array_bits = [  
-  1  ,  
-  2  ,  
-]  
+
+after_value = "value"
+after_comment = "value"  # Hello
+[after_table]
+after_array_bits = [
+  1  ,
+  2  ,
+]
 
 "#]],
         );

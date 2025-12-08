@@ -6,7 +6,7 @@ pub use toml_parser::parser::EventKind as TokenKind;
 
 #[derive(Debug)]
 pub struct TomlTokens<'i> {
-    tokens: Vec<TomlToken<'i>>,
+    pub tokens: Vec<TomlToken<'i>>,
     input_len: usize,
 }
 
@@ -55,6 +55,26 @@ impl<'i> TomlTokens<'i> {
             tokens,
             input_len: input.len(),
         }
+    }
+
+    pub fn rfind_all<'f: 'i>(
+        &'f self,
+        pred: impl Fn(&TomlToken<'i>) -> bool + 'f,
+    ) -> impl Iterator<Item = usize> + 'f {
+        self.tokens
+            .iter()
+            .rev()
+            .enumerate()
+            .filter(move |(_, t)| pred(t))
+            .map(move |(i, _)| self.tokens.len() - i - 1)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.tokens.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.tokens.len()
     }
 
     #[allow(clippy::inherent_to_string_shadow_display)]
