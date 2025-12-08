@@ -310,6 +310,7 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
     let mut tokens = cargo_cargofmt::toml::TomlTokens::parse(&input);
 
     cargo_cargofmt::formatting::trim_trailing_spaces(&mut tokens);
+    cargo_cargofmt::formatting::normalize_space_separators(&mut tokens);
 
     let mut formatted = tokens.to_string();
 
