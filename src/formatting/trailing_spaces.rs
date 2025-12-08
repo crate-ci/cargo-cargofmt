@@ -2,32 +2,31 @@ use std::borrow::Cow;
 
 #[tracing::instrument]
 pub fn trim_trailing_spaces(tokens: &mut crate::toml::TomlTokens<'_>) {
-    let mut to_remove = Vec::new();
-    if let Some(last) = tokens.tokens.last() {
+    let empty = "";
+
+    if let Some(last) = tokens.tokens.last_mut() {
         if last.kind == crate::toml::TokenKind::Whitespace {
-            to_remove.push(tokens.len() - 1);
+            last.raw = Cow::Borrowed(empty);
         }
     }
-    to_remove.extend(
-        tokens
-            .rfind_all(|t| t.kind == crate::toml::TokenKind::Newline)
-            .filter_map(|nl_i| {
-                let prev_i = nl_i.checked_sub(1)?;
-                if tokens.tokens[prev_i].kind == crate::toml::TokenKind::Whitespace {
-                    Some(prev_i)
-                } else {
-                    None
-                }
-            }),
-    );
-    for i in to_remove {
-        tokens.tokens.remove(i);
+    for i in tokens.indices() {
+        if tokens.tokens[i].kind != crate::toml::TokenKind::Newline {
+            continue;
+        }
+        let Some(prev_i) = i.checked_sub(1) else {
+            continue;
+        };
+        if tokens.tokens[prev_i].kind != crate::toml::TokenKind::Whitespace {
+            continue;
+        }
+        tokens.tokens[prev_i].raw = Cow::Borrowed(empty);
     }
+    tokens.trim_empty_whitespace();
 
-    let to_trim = tokens
-        .rfind_all(|t| t.kind == crate::toml::TokenKind::Comment)
-        .collect::<Vec<_>>();
-    for i in to_trim {
+    for i in tokens.indices() {
+        if tokens.tokens[i].kind != crate::toml::TokenKind::Comment {
+            continue;
+        }
         tokens.tokens[i].raw = match std::mem::take(&mut tokens.tokens[i].raw) {
             Cow::Borrowed(s) => Cow::Borrowed(s.trim_end()),
             Cow::Owned(mut s) => {
