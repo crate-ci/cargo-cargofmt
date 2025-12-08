@@ -57,16 +57,8 @@ impl<'i> TomlTokens<'i> {
         }
     }
 
-    pub fn rfind_all<'f: 'i>(
-        &'f self,
-        pred: impl Fn(&TomlToken<'i>) -> bool + 'f,
-    ) -> impl Iterator<Item = usize> + 'f {
-        self.tokens
-            .iter()
-            .rev()
-            .enumerate()
-            .filter(move |(_, t)| pred(t))
-            .map(move |(i, _)| self.tokens.len() - i - 1)
+    pub fn indices(&self) -> impl Iterator<Item = usize> {
+        0..self.tokens.len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -75,6 +67,11 @@ impl<'i> TomlTokens<'i> {
 
     pub fn len(&self) -> usize {
         self.tokens.len()
+    }
+
+    pub fn trim_empty_whitespace(&mut self) {
+        self.tokens
+            .retain(|t| !(matches!(t.kind, TokenKind::Whitespace) && t.raw.is_empty()));
     }
 
     #[allow(clippy::inherent_to_string_shadow_display)]
