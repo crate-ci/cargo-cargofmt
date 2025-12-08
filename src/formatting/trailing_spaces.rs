@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+#[tracing::instrument]
 pub fn trim_trailing_spaces(tokens: &mut crate::toml::TomlTokens<'_>) {
     let mut to_remove = Vec::new();
     if let Some(last) = tokens.tokens.last() {

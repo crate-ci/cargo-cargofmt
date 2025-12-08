@@ -24,6 +24,7 @@ impl Default for Config {
     }
 }
 
+#[tracing::instrument]
 pub fn load_config(search_start: &Path) -> Result<Config, io::Error> {
     let Some(path) = find_config(search_start) else {
         return Ok(Config::default());

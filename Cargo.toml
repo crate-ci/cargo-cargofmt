@@ -132,8 +132,14 @@ serde = { version = "1.0.228", features = ["derive"] }
 snapbox = { version = "0.6.23", default-features = false, features = ["diff"] }
 toml = { version = "0.9.8", features = ["fast_hash", "preserve_order"] }
 toml_parser = { version = "1.0.4", features = ["simd"] }
+tracing = "0.1.43"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+
+[target.'cfg(target_has_atomic = "64")'.dependencies]
+tracing-chrome = "0.7.2"
 
 [target.'cfg(false)'.dependencies]
+lazy_static = "1.5.0"
 serde_json = "1.0.145"
 
 [dev-dependencies]
