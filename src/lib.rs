@@ -6,6 +6,7 @@
 
 pub mod config;
 pub mod formatting;
+pub mod toml;
 
 #[doc = include_str!("../README.md")]
 #[cfg(doctest)]
