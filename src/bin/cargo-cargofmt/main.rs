@@ -317,6 +317,7 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
         config.blank_lines_upper_bound,
     );
     cargo_cargofmt::formatting::adjust_trailing_comma(&mut tokens, config.trailing_comma);
+    cargo_cargofmt::formatting::normalize_indent(&mut tokens, config.hard_tabs, config.tab_spaces);
 
     let mut formatted = tokens.to_string();
 
