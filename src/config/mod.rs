@@ -2,6 +2,7 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
+pub mod lists;
 pub mod options;
 
 #[derive(serde::Deserialize)]
@@ -13,6 +14,7 @@ pub struct Config {
     pub generated_marker_line_search_limit: usize,
     pub blank_lines_lower_bound: usize,
     pub blank_lines_upper_bound: usize,
+    pub trailing_comma: lists::SeparatorTactic,
 }
 
 impl Default for Config {
@@ -24,6 +26,7 @@ impl Default for Config {
             generated_marker_line_search_limit: 5,
             blank_lines_lower_bound: 0,
             blank_lines_upper_bound: 1,
+            trailing_comma: lists::SeparatorTactic::Vertical,
         }
     }
 }
