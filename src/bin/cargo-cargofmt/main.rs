@@ -311,6 +311,11 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
 
     cargo_cargofmt::formatting::trim_trailing_spaces(&mut tokens);
     cargo_cargofmt::formatting::normalize_space_separators(&mut tokens);
+    cargo_cargofmt::formatting::constrain_blank_lines(
+        &mut tokens,
+        config.blank_lines_lower_bound,
+        config.blank_lines_upper_bound,
+    );
 
     let mut formatted = tokens.to_string();
 

@@ -11,6 +11,8 @@ pub struct Config {
     pub newline_style: options::NewlineStyle,
     pub format_generated_files: bool,
     pub generated_marker_line_search_limit: usize,
+    pub blank_lines_lower_bound: usize,
+    pub blank_lines_upper_bound: usize,
 }
 
 impl Default for Config {
@@ -20,6 +22,8 @@ impl Default for Config {
             newline_style: options::NewlineStyle::default(),
             format_generated_files: false,
             generated_marker_line_search_limit: 5,
+            blank_lines_lower_bound: 0,
+            blank_lines_upper_bound: 1,
         }
     }
 }
