@@ -102,6 +102,23 @@ pub struct TomlToken<'i> {
     pub raw: Cow<'i, str>,
 }
 
+impl TomlToken<'_> {
+    pub const EMPTY: Self = Self {
+        kind: TokenKind::Whitespace,
+        encoding: None,
+        decoded: None,
+        scalar: None,
+        raw: Cow::Borrowed(""),
+    };
+    pub const SPACE: Self = Self {
+        kind: TokenKind::Whitespace,
+        encoding: None,
+        decoded: None,
+        scalar: None,
+        raw: Cow::Borrowed(" "),
+    };
+}
+
 impl std::fmt::Display for TomlToken<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.raw.fmt(f)

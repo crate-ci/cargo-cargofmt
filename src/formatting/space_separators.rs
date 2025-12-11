@@ -1,13 +1,8 @@
-use std::borrow::Cow;
-
 use crate::toml::TokenKind;
 use crate::toml::TomlToken;
 
 #[tracing::instrument]
 pub fn normalize_space_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
-    let empty = "";
-    let space = " ";
-
     let mut indices = crate::toml::TokenIndices::new();
     while let Some(mut i) = indices.next_index(tokens) {
         match tokens.tokens[i].kind {
@@ -15,14 +10,14 @@ pub fn normalize_space_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
                 let next_i = i + 1;
                 if let Some(next) = tokens.tokens.get(next_i) {
                     if matches!(next.kind, TokenKind::Whitespace) {
-                        tokens.tokens[next_i].raw = Cow::Borrowed(empty);
+                        tokens.tokens[next_i] = TomlToken::EMPTY;
                     }
                 }
             }
             TokenKind::StdTableClose | TokenKind::ArrayTableClose | TokenKind::ArrayClose => {
                 if let Some(prev_i) = i.checked_sub(1) {
                     if matches!(tokens.tokens[prev_i].kind, TokenKind::Whitespace) {
-                        tokens.tokens[prev_i].raw = Cow::Borrowed(empty);
+                        tokens.tokens[prev_i] = TomlToken::EMPTY;
                     }
                 }
             }
@@ -30,18 +25,9 @@ pub fn normalize_space_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
                 let next_i = i + 1;
                 if let Some(next) = tokens.tokens.get(next_i) {
                     if matches!(next.kind, TokenKind::Whitespace) {
-                        tokens.tokens[next_i].raw = Cow::Borrowed(space);
+                        tokens.tokens[next_i] = TomlToken::SPACE;
                     } else if matches!(next.kind, TokenKind::SimpleKey) {
-                        tokens.tokens.insert(
-                            next_i,
-                            TomlToken {
-                                kind: TokenKind::Whitespace,
-                                encoding: None,
-                                decoded: None,
-                                scalar: None,
-                                raw: Cow::Borrowed(space),
-                            },
-                        );
+                        tokens.tokens.insert(next_i, TomlToken::SPACE);
                     }
                 }
             }
@@ -59,21 +45,12 @@ pub fn normalize_space_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
                             })
                             .unwrap_or(false)
                         {
-                            tokens.tokens[prev_i].raw = Cow::Borrowed(empty);
+                            tokens.tokens[prev_i] = TomlToken::EMPTY;
                         } else {
-                            tokens.tokens[prev_i].raw = Cow::Borrowed(space);
+                            tokens.tokens[prev_i] = TomlToken::SPACE;
                         }
                     } else if matches!(prev.kind, TokenKind::Scalar | TokenKind::ValueSep) {
-                        tokens.tokens.insert(
-                            i,
-                            TomlToken {
-                                kind: TokenKind::Whitespace,
-                                encoding: None,
-                                decoded: None,
-                                scalar: None,
-                                raw: Cow::Borrowed(space),
-                            },
-                        );
+                        tokens.tokens.insert(i, TomlToken::SPACE);
                     }
                 }
             }
@@ -81,13 +58,13 @@ pub fn normalize_space_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
             TokenKind::KeySep => {
                 if let Some(prev_i) = i.checked_sub(1) {
                     if matches!(tokens.tokens[prev_i].kind, TokenKind::Whitespace) {
-                        tokens.tokens[prev_i].raw = Cow::Borrowed(empty);
+                        tokens.tokens[prev_i] = TomlToken::EMPTY;
                     }
                 }
                 let next_i = i + 1;
                 if let Some(next) = tokens.tokens.get(next_i) {
                     if matches!(next.kind, TokenKind::Whitespace) {
-                        tokens.tokens[next_i].raw = Cow::Borrowed(empty);
+                        tokens.tokens[next_i] = TomlToken::EMPTY;
                     }
                 }
             }
@@ -109,35 +86,17 @@ pub fn normalize_space_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
                 }
                 if let Some(prev_i) = i.checked_sub(1) {
                     if matches!(tokens.tokens[prev_i].kind, TokenKind::Whitespace) {
-                        tokens.tokens[prev_i].raw = Cow::Borrowed(space);
+                        tokens.tokens[prev_i] = TomlToken::SPACE;
                     } else if matches!(tokens.tokens[prev_i].kind, TokenKind::SimpleKey) {
-                        tokens.tokens.insert(
-                            i,
-                            TomlToken {
-                                kind: TokenKind::Whitespace,
-                                encoding: None,
-                                decoded: None,
-                                scalar: None,
-                                raw: Cow::Borrowed(space),
-                            },
-                        );
+                        tokens.tokens.insert(i, TomlToken::SPACE);
                     }
                 }
                 let next_i = i + 1;
                 if let Some(next) = tokens.tokens.get(next_i) {
                     if matches!(next.kind, TokenKind::Whitespace) {
-                        tokens.tokens[next_i].raw = Cow::Borrowed(space);
+                        tokens.tokens[next_i] = TomlToken::SPACE;
                     } else if matches!(next.kind, TokenKind::Scalar) {
-                        tokens.tokens.insert(
-                            next_i,
-                            TomlToken {
-                                kind: TokenKind::Whitespace,
-                                encoding: None,
-                                decoded: None,
-                                scalar: None,
-                                raw: Cow::Borrowed(space),
-                            },
-                        );
+                        tokens.tokens.insert(next_i, TomlToken::SPACE);
                     }
                 }
             }
@@ -160,24 +119,15 @@ pub fn normalize_space_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
                 }
                 if let Some(prev_i) = i.checked_sub(1) {
                     if matches!(tokens.tokens[prev_i].kind, TokenKind::Whitespace) {
-                        tokens.tokens[prev_i].raw = Cow::Borrowed(empty);
+                        tokens.tokens[prev_i] = TomlToken::EMPTY;
                     }
                 }
                 let next_i = i + 1;
                 if let Some(next) = tokens.tokens.get(next_i) {
                     if matches!(next.kind, TokenKind::Whitespace) {
-                        tokens.tokens[next_i].raw = Cow::Borrowed(space);
+                        tokens.tokens[next_i] = TomlToken::SPACE;
                     } else if matches!(next.kind, TokenKind::SimpleKey | TokenKind::Scalar) {
-                        tokens.tokens.insert(
-                            next_i,
-                            TomlToken {
-                                kind: TokenKind::Whitespace,
-                                encoding: None,
-                                decoded: None,
-                                scalar: None,
-                                raw: Cow::Borrowed(space),
-                            },
-                        );
+                        tokens.tokens.insert(next_i, TomlToken::SPACE);
                     }
                 }
             }
@@ -185,18 +135,9 @@ pub fn normalize_space_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
             TokenKind::Comment => {
                 if let Some(prev_i) = i.checked_sub(1) {
                     if matches!(tokens.tokens[prev_i].kind, TokenKind::Whitespace) {
-                        tokens.tokens[prev_i].raw = Cow::Borrowed(space);
+                        tokens.tokens[prev_i] = TomlToken::SPACE;
                     } else if !matches!(tokens.tokens[prev_i].kind, TokenKind::Newline) {
-                        tokens.tokens.insert(
-                            i,
-                            TomlToken {
-                                kind: TokenKind::Whitespace,
-                                encoding: None,
-                                decoded: None,
-                                scalar: None,
-                                raw: Cow::Borrowed(space),
-                            },
-                        );
+                        tokens.tokens.insert(i, TomlToken::SPACE);
                     }
                 }
             }
