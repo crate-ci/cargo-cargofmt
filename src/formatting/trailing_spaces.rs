@@ -1,12 +1,11 @@
+use crate::toml::TomlToken;
 use std::borrow::Cow;
 
 #[tracing::instrument]
 pub fn trim_trailing_spaces(tokens: &mut crate::toml::TomlTokens<'_>) {
-    let empty = "";
-
     if let Some(last) = tokens.tokens.last_mut() {
         if last.kind == crate::toml::TokenKind::Whitespace {
-            last.raw = Cow::Borrowed(empty);
+            *last = TomlToken::EMPTY;
         }
     }
     for i in tokens.indices() {
@@ -19,7 +18,7 @@ pub fn trim_trailing_spaces(tokens: &mut crate::toml::TomlTokens<'_>) {
         if tokens.tokens[prev_i].kind != crate::toml::TokenKind::Whitespace {
             continue;
         }
-        tokens.tokens[prev_i].raw = Cow::Borrowed(empty);
+        tokens.tokens[prev_i] = TomlToken::EMPTY;
     }
     tokens.trim_empty_whitespace();
 
