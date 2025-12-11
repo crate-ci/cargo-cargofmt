@@ -117,6 +117,13 @@ impl TomlToken<'_> {
         scalar: None,
         raw: Cow::Borrowed(" "),
     };
+    pub const NL: Self = Self {
+        kind: TokenKind::Newline,
+        encoding: None,
+        decoded: None,
+        scalar: None,
+        raw: Cow::Borrowed("\n"), // assuming operating on normalized newlines
+    };
 }
 
 impl std::fmt::Display for TomlToken<'_> {
