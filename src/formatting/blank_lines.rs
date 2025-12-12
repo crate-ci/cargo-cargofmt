@@ -31,28 +31,30 @@ pub fn constrain_blank_lines(tokens: &mut crate::toml::TomlTokens<'_>, min: usiz
             }
             TokenKind::Newline => {
                 let blank_i = i + 1;
-                let actual_newline_count = tokens.tokens[blank_i..]
-                    .iter()
-                    .take_while(|t| t.kind == TokenKind::Newline)
-                    .count();
-                let constrained_newline_count = if i + 1 == tokens.tokens.len() || depth != 0 {
-                    0
-                } else {
-                    actual_newline_count.clamp(min, max)
-                };
-                if let Some(remove_count) =
-                    actual_newline_count.checked_sub(constrained_newline_count)
-                {
-                    tokens.tokens.splice(blank_i..blank_i + remove_count, []);
-                } else if let Some(add_count) =
-                    constrained_newline_count.checked_sub(actual_newline_count)
-                {
-                    tokens
-                        .tokens
-                        .splice(blank_i..blank_i, (0..add_count).map(|_| TomlToken::NL));
+                if blank_i < tokens.len() {
+                    let actual_newline_count = tokens.tokens[blank_i..]
+                        .iter()
+                        .take_while(|t| t.kind == TokenKind::Newline)
+                        .count();
+                    let constrained_newline_count = if i + 1 == tokens.tokens.len() || depth != 0 {
+                        0
+                    } else {
+                        actual_newline_count.clamp(min, max)
+                    };
+                    if let Some(remove_count) =
+                        actual_newline_count.checked_sub(constrained_newline_count)
+                    {
+                        tokens.tokens.splice(blank_i..blank_i + remove_count, []);
+                    } else if let Some(add_count) =
+                        constrained_newline_count.checked_sub(actual_newline_count)
+                    {
+                        tokens
+                            .tokens
+                            .splice(blank_i..blank_i, (0..add_count).map(|_| TomlToken::NL));
+                    }
+                    i = blank_i + constrained_newline_count - 1;
+                    indices.set_next_index(i + 1);
                 }
-                i = blank_i + constrained_newline_count;
-                indices.set_next_index(i + 1);
             }
             TokenKind::Error => {}
         }
@@ -230,7 +232,9 @@ f = [
   1,
   2,
 ]
+
 g = { a = 1, b = 2 }
+
 
 "#]],
         );
@@ -279,6 +283,8 @@ f = [
   1,
   2,
 ]
+
+
 g = { a = 1, b = 2 }
 "#]],
         );
@@ -347,6 +353,9 @@ f = [
   1,
   2,
 ]
+
+
+
 g = { a = 1, b = 2 }
 
 "#]],
@@ -367,6 +376,7 @@ key = [
             str![[r#"
 key = [
 ]
+
 [b]
 
 "#]],
