@@ -7,5 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+Initial release
+
 <!-- next-url -->
 [Unreleased]: https://github.com/rust-cli/argfile/compare/434e319...HEAD
