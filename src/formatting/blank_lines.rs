@@ -36,11 +36,13 @@ pub fn constrain_blank_lines(tokens: &mut crate::toml::TomlTokens<'_>, min: usiz
                         .iter()
                         .take_while(|t| t.kind == TokenKind::Newline)
                         .count();
-                    let constrained_newline_count = if i + 1 == tokens.tokens.len() || depth != 0 {
-                        0
-                    } else {
-                        actual_newline_count.clamp(min, max)
-                    };
+                    let is_trailing_newline = i + 1 == tokens.tokens.len();
+                    let constrained_newline_count =
+                        if is_trailing_newline || depth != 0 || after_table_header(tokens, i) {
+                            0
+                        } else {
+                            actual_newline_count.clamp(min, max)
+                        };
                     if let Some(remove_count) =
                         actual_newline_count.checked_sub(constrained_newline_count)
                     {
@@ -59,6 +61,38 @@ pub fn constrain_blank_lines(tokens: &mut crate::toml::TomlTokens<'_>, min: usiz
             TokenKind::Error => {}
         }
     }
+}
+
+fn after_table_header(tokens: &crate::toml::TomlTokens<'_>, i: usize) -> bool {
+    // Assumption: `i` is the newline after a table close
+    let Some(prev_nl_i) = (0..i)
+        .rev()
+        .find(|i| tokens.tokens[*i].kind == TokenKind::Newline)
+    else {
+        return false;
+    };
+
+    let after_header = tokens.tokens[prev_nl_i..i]
+        .iter()
+        .any(|t| matches!(t.kind, TokenKind::StdTableOpen | TokenKind::ArrayTableOpen));
+    if !after_header {
+        return false;
+    }
+
+    for token in &tokens.tokens[i..] {
+        match token.kind {
+            TokenKind::StdTableOpen | TokenKind::ArrayTableOpen => {
+                // empty tables don't count
+                return false;
+            }
+            TokenKind::SimpleKey => {
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    true
 }
 
 #[cfg(test)]
@@ -225,7 +259,6 @@ b = 6
 c = 7
 
 [d]
-
 e = 10
 
 f = [
@@ -274,8 +307,6 @@ c = 7
 
 
 [d]
-
-
 e = 10
 
 
@@ -342,9 +373,6 @@ c = 7
 
 
 [d]
-
-
-
 e = 10
 
 
