@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.1.1] - 2025-12-12
+
 ## [0.1.0] - 2025-12-12
 
 Initial release
 
 <!-- next-url -->
-[Unreleased]: https://github.com/crate-ci/cargo-cargofmt/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/crate-ci/cargo-cargofmt/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/crate-ci/cargo-cargofmt/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rust-cli/argfile/compare/434e319...v0.1.0
