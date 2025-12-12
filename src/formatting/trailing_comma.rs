@@ -413,4 +413,22 @@ multi-horizontal = { a = 1, b =  2, c = 3 }
 "#]],
         );
     }
+
+    #[test]
+    #[should_panic = "TOML parse error"]
+    fn empty_array_with_previous_value() {
+        valid(
+            r#"
+unrelated = "content"
+unchanged = []
+"#,
+            SeparatorTactic::Vertical,
+            str![[r#"
+
+unrelated = "content",
+unchanged = []
+
+"#]],
+        );
+    }
 }
