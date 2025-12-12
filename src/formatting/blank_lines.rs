@@ -352,4 +352,24 @@ g = { a = 1, b = 2 }
 "#]],
         );
     }
+
+    #[test]
+    fn blank_line_between_array_close_and_table_open() {
+        valid(
+            r#"
+key = [
+]
+
+[b]
+"#,
+            0,
+            1,
+            str![[r#"
+key = [
+]
+[b]
+
+"#]],
+        );
+    }
 }
