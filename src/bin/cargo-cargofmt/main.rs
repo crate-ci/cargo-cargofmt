@@ -25,7 +25,7 @@ const FAILURE: i32 = 1;
 #[command(version)]
 #[command(styles = clap_cargo::style::CLAP_STYLING)]
 enum CargoOpts {
-    CargoFmt(Opts),
+    Cargofmt(Opts),
 }
 
 #[derive(clap::Args)]
@@ -59,7 +59,7 @@ fn main() {
 #[tracing::instrument]
 fn execute() -> i32 {
     let opts = CargoOpts::parse();
-    let CargoOpts::CargoFmt(opts) = opts;
+    let CargoOpts::Cargofmt(opts) = opts;
 
     let strategy = CargoFmtStrategy::from_opts(&opts);
 

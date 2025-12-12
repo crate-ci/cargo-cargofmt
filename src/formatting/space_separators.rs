@@ -81,7 +81,7 @@ pub fn normalize_space_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
                     }
                     let token = tokens.tokens.remove(i);
                     tokens.tokens.insert(new_i, token);
-                    indices.reset(new_i + 1);
+                    indices.set_next_index(new_i + 1);
                     i = new_i;
                 }
                 if let Some(prev_i) = i.checked_sub(1) {
@@ -114,7 +114,7 @@ pub fn normalize_space_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
                     }
                     let token = tokens.tokens.remove(i);
                     tokens.tokens.insert(new_i, token);
-                    indices.reset(new_i + 1);
+                    indices.set_next_index(new_i + 1);
                     i = new_i;
                 }
                 if let Some(prev_i) = i.checked_sub(1) {

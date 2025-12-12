@@ -20,10 +20,12 @@ pub fn adjust_trailing_comma(tokens: &mut crate::toml::TomlTokens<'_>, tactic: S
                             | TokenKind::Scalar
                             | TokenKind::ArrayClose
                             | TokenKind::InlineTableClose
+                            | TokenKind::ArrayOpen
                     )
                 }) {
                     let prev_kind = tokens.tokens[prev_i].kind;
                     let action = match (tactic, prev_kind) {
+                        (_, TokenKind::ArrayOpen) => None,
                         (SeparatorTactic::Always, TokenKind::ValueSep) => None,
                         (SeparatorTactic::Always, _) => Some(Action::Add),
                         (SeparatorTactic::Never, TokenKind::ValueSep) => Some(Action::Remove),
@@ -53,16 +55,16 @@ pub fn adjust_trailing_comma(tokens: &mut crate::toml::TomlTokens<'_>, tactic: S
                         Some(Action::Add) => {
                             tokens.tokens.insert(prev_i + 1, TomlToken::VAL_SEP);
                             i += 1;
-                            indices.reset(i + 1);
+                            indices.set_next_index(i + 1);
                         }
                         Some(Action::Remove) => {
                             tokens.tokens.remove(prev_i);
                             i -= 1;
-                            indices.reset(i + 1);
+                            indices.set_next_index(i + 1);
                             if tokens.tokens[prev_i].kind == TokenKind::Whitespace {
                                 tokens.tokens.remove(prev_i);
                                 i -= 1;
-                                indices.reset(i + 1);
+                                indices.set_next_index(i + 1);
                             }
                         }
                         None => {}
@@ -409,6 +411,23 @@ empty = {}
 single-horizontal = { a = 1 }
 
 multi-horizontal = { a = 1, b =  2, c = 3 }
+
+"#]],
+        );
+    }
+
+    #[test]
+    fn empty_array_with_previous_value() {
+        valid(
+            r#"
+unrelated = "content"
+unchanged = []
+"#,
+            SeparatorTactic::Vertical,
+            str![[r#"
+
+unrelated = "content"
+unchanged = []
 
 "#]],
         );

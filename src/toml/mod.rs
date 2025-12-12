@@ -25,7 +25,7 @@ impl TokenIndices {
         }
     }
 
-    pub fn reset(&mut self, i: usize) {
+    pub fn set_next_index(&mut self, i: usize) {
         self.i = i;
     }
 
