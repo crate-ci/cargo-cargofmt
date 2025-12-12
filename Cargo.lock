@@ -128,6 +128,7 @@ dependencies = [
  "snapbox",
  "toml",
  "toml_parser",
+ "toml_writer",
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
