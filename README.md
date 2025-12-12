@@ -10,7 +10,7 @@ Provide a sandbox to experiment with
 [Style guide: `Cargo.toml` conventions](https://doc.rust-lang.org/nightly/style-guide/cargo.html)
 - [Proposed format](https://github.com/crate-ci/cargo-cargofmt/discussions/25)
 - [Enumerating overlap with Rust's style](https://github.com/crate-ci/cargo-cargofmt/issues/8)
-- [Summaries of existing formatters](https://github.com/crate-ci/cargo-cargofmt/discussions/30)
+- [Summaries of existing formatters](https://github.com/crate-ci/cargo-cargofmt/discussions/3)
 - [Summaries of past conversations](https://github.com/crate-ci/cargo-cargofmt/discussions/9)
 
 ## License
