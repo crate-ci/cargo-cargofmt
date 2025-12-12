@@ -20,10 +20,12 @@ pub fn adjust_trailing_comma(tokens: &mut crate::toml::TomlTokens<'_>, tactic: S
                             | TokenKind::Scalar
                             | TokenKind::ArrayClose
                             | TokenKind::InlineTableClose
+                            | TokenKind::ArrayOpen
                     )
                 }) {
                     let prev_kind = tokens.tokens[prev_i].kind;
                     let action = match (tactic, prev_kind) {
+                        (_, TokenKind::ArrayOpen) => None,
                         (SeparatorTactic::Always, TokenKind::ValueSep) => None,
                         (SeparatorTactic::Always, _) => Some(Action::Add),
                         (SeparatorTactic::Never, TokenKind::ValueSep) => Some(Action::Remove),
@@ -415,7 +417,6 @@ multi-horizontal = { a = 1, b =  2, c = 3 }
     }
 
     #[test]
-    #[should_panic = "TOML parse error"]
     fn empty_array_with_previous_value() {
         valid(
             r#"
@@ -425,7 +426,7 @@ unchanged = []
             SeparatorTactic::Vertical,
             str![[r#"
 
-unrelated = "content",
+unrelated = "content"
 unchanged = []
 
 "#]],
