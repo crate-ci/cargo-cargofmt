@@ -27,7 +27,7 @@ pub fn constrain_blank_lines(tokens: &mut crate::toml::TomlTokens<'_>, min: usiz
             TokenKind::Comment => {}
             TokenKind::Newline if i == 0 => {
                 tokens.tokens.remove(0);
-                indices.reset(0);
+                indices.set_next_index(0);
             }
             TokenKind::Newline => {
                 let blank_i = i + 1;
@@ -52,7 +52,7 @@ pub fn constrain_blank_lines(tokens: &mut crate::toml::TomlTokens<'_>, min: usiz
                         .splice(blank_i..blank_i, (0..add_count).map(|_| TomlToken::NL));
                 }
                 i = blank_i + constrained_newline_count;
-                indices.reset(i + 1);
+                indices.set_next_index(i + 1);
             }
             TokenKind::Error => {}
         }

@@ -55,16 +55,16 @@ pub fn adjust_trailing_comma(tokens: &mut crate::toml::TomlTokens<'_>, tactic: S
                         Some(Action::Add) => {
                             tokens.tokens.insert(prev_i + 1, TomlToken::VAL_SEP);
                             i += 1;
-                            indices.reset(i + 1);
+                            indices.set_next_index(i + 1);
                         }
                         Some(Action::Remove) => {
                             tokens.tokens.remove(prev_i);
                             i -= 1;
-                            indices.reset(i + 1);
+                            indices.set_next_index(i + 1);
                             if tokens.tokens[prev_i].kind == TokenKind::Whitespace {
                                 tokens.tokens.remove(prev_i);
                                 i -= 1;
-                                indices.reset(i + 1);
+                                indices.set_next_index(i + 1);
                             }
                         }
                         None => {}
