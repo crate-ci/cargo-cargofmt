@@ -15,6 +15,8 @@ pub struct Config {
     pub blank_lines_lower_bound: usize,
     pub blank_lines_upper_bound: usize,
     pub trailing_comma: lists::SeparatorTactic,
+    pub hard_tabs: bool,
+    pub tab_spaces: usize,
 }
 
 impl Default for Config {
@@ -27,6 +29,8 @@ impl Default for Config {
             blank_lines_lower_bound: 0,
             blank_lines_upper_bound: 1,
             trailing_comma: lists::SeparatorTactic::Vertical,
+            hard_tabs: false,
+            tab_spaces: 4,
         }
     }
 }
