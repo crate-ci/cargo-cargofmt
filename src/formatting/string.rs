@@ -1,5 +1,49 @@
+use std::borrow::Cow;
+
+use toml_writer::TomlWrite as _;
+
+use crate::toml::TokenKind;
+
 #[tracing::instrument]
-pub fn normalize_strings(_tokens: &mut crate::toml::TomlTokens<'_>) {}
+pub fn normalize_strings(tokens: &mut crate::toml::TomlTokens<'_>) {
+    for i in tokens.indices() {
+        let token = &mut tokens.tokens[i];
+        match token.kind {
+            TokenKind::StdTableOpen | TokenKind::ArrayTableOpen => {}
+            TokenKind::ArrayOpen | TokenKind::InlineTableOpen => {}
+            TokenKind::StdTableClose | TokenKind::ArrayTableClose => {}
+            TokenKind::ArrayClose | TokenKind::InlineTableClose => {}
+            TokenKind::SimpleKey => {
+                if token.encoding.is_some() {
+                    let mut new_raw = String::new();
+                    new_raw
+                        .key(
+                            toml_writer::TomlKeyBuilder::new(token.decoded.as_ref().unwrap())
+                                .as_default(),
+                        )
+                        .unwrap();
+                    token.raw = Cow::Owned(new_raw);
+                }
+            }
+            TokenKind::KeySep => {}
+            TokenKind::KeyValSep => {}
+            TokenKind::Scalar => {
+                if let Some(decoded) = token.decoded.as_ref() {
+                    let mut new_raw = String::new();
+                    new_raw
+                        .value(toml_writer::TomlStringBuilder::new(decoded).as_default())
+                        .unwrap();
+                    token.raw = Cow::Owned(new_raw);
+                }
+            }
+            TokenKind::ValueSep => {}
+            TokenKind::Whitespace => {}
+            TokenKind::Comment => {}
+            TokenKind::Newline => {}
+            TokenKind::Error => {}
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -59,9 +103,9 @@ a = "value"
             str![[r#"
 
 "" = "value"
-"b" = "value"
+b = "value"
 "c'" = "value"
-"d/"" = "value"
+'d"' = "value"
 
 "#]],
         );
@@ -77,8 +121,8 @@ a = "value"
 "#,
             str![[r#"
 
-'' = "value"
-'b' = "value"
+"" = "value"
+b = "value"
 'd"' = "value"
 
 "#]],
@@ -101,13 +145,11 @@ value'''
             str![[r#"
 
 a = "value"
-b = 'value'
-c = """value"""
-d = """
-value"""
-e = '''value'''
-f = '''
-value'''
+b = "value"
+c = "value"
+d = "value"
+e = "value"
+f = "value"
 
 "#]],
         );
@@ -128,14 +170,12 @@ a"b'''
 "#,
             str![[r#"
 
-a = "a/"b"
+a = 'a"b'
 b = 'a"b'
-c = """a/"b"""
-d = """
-a/"b"""
-e = '''a"b'''
-f = '''
-a"b'''
+c = 'a"b'
+d = 'a"b'
+e = 'a"b'
+f = 'a"b'
 
 "#]],
         );
@@ -165,23 +205,27 @@ b
 "#,
             str![[r#"
 
-a = """ab"""
-b = """a/nb"""
-c = """a
+a = "ab"
+b = """
+a
+b"""
+c = """
+a
 b
 """
 d = """
 a
 b
 """
-e = '''ab'''
-f = '''a
-b
-'''
-g = '''
+e = "ab"
+f = """
 a
 b
-'''
+"""
+g = """
+a
+b
+"""
 
 "#]],
         );
