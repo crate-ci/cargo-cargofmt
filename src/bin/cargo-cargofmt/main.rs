@@ -289,52 +289,18 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
         .map_err(io::Error::other)
         .map_err(Some)?;
 
-    if !config.format_generated_files
-        && cargo_cargofmt::formatting::is_generated_file(
-            &raw_input_text,
-            config.generated_marker_line_search_limit,
-        )
-    {
+    let Some(formatted) = cargo_cargofmt::fmt_manifest(&raw_input_text, config) else {
         return Ok(());
-    }
+    };
 
-    let mut input = raw_input_text.clone();
-
-    // Normalize for easier manipulation
-    cargo_cargofmt::formatting::apply_newline_style(
-        cargo_cargofmt::config::options::NewlineStyle::Unix,
-        &mut input,
-        &raw_input_text,
-    );
-
-    let mut tokens = cargo_cargofmt::toml::TomlTokens::parse(&input);
-
-    cargo_cargofmt::formatting::trim_trailing_spaces(&mut tokens);
-    cargo_cargofmt::formatting::normalize_space_separators(&mut tokens);
-    cargo_cargofmt::formatting::constrain_blank_lines(
-        &mut tokens,
-        config.blank_lines_lower_bound,
-        config.blank_lines_upper_bound,
-    );
-    cargo_cargofmt::formatting::adjust_trailing_comma(&mut tokens, config.trailing_comma);
-    cargo_cargofmt::formatting::normalize_indent(&mut tokens, config.hard_tabs, config.tab_spaces);
-
-    let mut formatted = tokens.to_string();
-
-    cargo_cargofmt::formatting::apply_newline_style(
-        config.newline_style,
-        &mut formatted,
-        &raw_input_text,
-    );
-
-    if input != formatted {
+    if raw_input_text != formatted {
         if check {
             let name = package.manifest_path.as_std_path();
             let name = name.to_string_lossy();
             let mut stream = String::new();
             snapbox::report::write_diff(
                 &mut stream,
-                &input.into(),
+                &raw_input_text.into(),
                 &formatted.into(),
                 Some(&name),
                 None,
