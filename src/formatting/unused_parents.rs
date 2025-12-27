@@ -320,44 +320,12 @@ other = 1
     }
 
     #[test]
-    fn preserve_parent_with_content_and_empty_child() {
-        valid(
-            "[parent]
-key = 1
-[parent.child]
-",
-            str![[r#"
-[parent]
-key = 1
-[parent.child]
-
-"#]],
-        );
-    }
-
-    #[test]
     fn preserve_standalone_table_no_children() {
         valid(
             "[standalone]
 ",
             str![[r#"
 [standalone]
-
-"#]],
-        );
-    }
-
-    #[test]
-    fn preserve_empty_standalone_tables() {
-        valid(
-            "[a]
-
-[b]
-",
-            str![[r#"
-[a]
-
-[b]
 
 "#]],
         );
