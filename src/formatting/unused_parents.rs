@@ -2,19 +2,12 @@ use crate::toml::TokenKind;
 use crate::toml::TomlToken;
 use crate::toml::TomlTokens;
 
-/// Metadata about a table header collected during the first pass.
 struct TableInfo {
-    /// The parsed table name segments (e.g., ["a", "b"] for [a.b])
     name: Vec<String>,
-    /// Whether this is an array table ([[table]]) vs standard table ([table])
     is_array_table: bool,
-    /// Token index where the table header starts (StdTableOpen/ArrayTableOpen)
     header_start: usize,
-    /// Token index of the Newline ending the header line (inclusive)
     header_end: usize,
-    /// Whether the table has key-value content before the next table
     has_content: bool,
-    /// Whether the table header line has a comment
     has_comment: bool,
 }
 
