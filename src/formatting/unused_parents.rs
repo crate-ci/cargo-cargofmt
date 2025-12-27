@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::toml::TokenKind;
 use crate::toml::TomlToken;
 use crate::toml::TomlTokens;
@@ -152,8 +154,8 @@ fn check_has_content(tokens: &TomlTokens<'_>, start: usize) -> bool {
     false
 }
 
-fn find_parent_names(tables: &[TableInfo]) -> std::collections::HashSet<Vec<String>> {
-    let mut parents = std::collections::HashSet::new();
+fn find_parent_names(tables: &[TableInfo]) -> HashSet<Vec<String>> {
+    let mut parents = HashSet::new();
 
     for table in tables {
         // Add all proper prefixes of this table's name
@@ -165,24 +167,11 @@ fn find_parent_names(tables: &[TableInfo]) -> std::collections::HashSet<Vec<Stri
     parents
 }
 
-fn should_remove(table: &TableInfo, parent_names: &std::collections::HashSet<Vec<String>>) -> bool {
-    // Only remove standard tables, not array tables
-    if table.is_array_table {
-        return false;
-    }
-
-    // Keep tables with content
-    if table.has_content {
-        return false;
-    }
-
-    // Keep tables with comments
-    if table.has_comment {
-        return false;
-    }
-
-    // Remove if this table is a parent of another table
-    parent_names.contains(&table.name)
+fn should_remove(table: &TableInfo, parent_names: &HashSet<Vec<String>>) -> bool {
+    !table.is_array_table
+        && !table.has_content
+        && !table.has_comment
+        && parent_names.contains(&table.name)
 }
 
 #[cfg(test)]
