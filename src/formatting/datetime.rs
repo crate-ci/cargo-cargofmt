@@ -1,11 +1,28 @@
+use std::borrow::Cow;
+
+use crate::toml::ScalarKind;
+use crate::toml::TokenKind;
+
 /// Normalizes datetime separators to use `T` instead of space or lowercase `t`.
 ///
 /// TOML allows `2025-12-26T10:30:00`, `2025-12-26t10:30:00`, and `2025-12-26 10:30:00`.
 /// This function normalizes to the uppercase `T` form for consistency.
 #[tracing::instrument]
 pub fn normalize_datetime_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
-    // No-op for now
-    let _ = tokens;
+    // YYYY-MM-DD is 10 characters, so the separator is at index 10
+    const DATE_LEN: usize = 10;
+
+    for i in tokens.indices() {
+        let token = &mut tokens.tokens[i];
+        if token.kind == TokenKind::Scalar && token.scalar == Some(ScalarKind::DateTime) {
+            let raw_bytes = token.raw.as_bytes();
+            if raw_bytes.len() > DATE_LEN && matches!(raw_bytes[DATE_LEN], b' ' | b't') {
+                let mut new_raw = token.raw.to_string();
+                new_raw.replace_range(DATE_LEN..=DATE_LEN, "T");
+                token.raw = Cow::Owned(new_raw);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -72,14 +89,13 @@ created = 2025-12-26T10:30:00
 
     #[test]
     fn datetime_with_space_normalized() {
-        // No-op: input == expected for now
         valid(
             r#"
 created = 2025-12-26 10:30:00
 "#,
             str![[r#"
 
-created = 2025-12-26 10:30:00
+created = 2025-12-26T10:30:00
 
 "#]],
         );
@@ -115,14 +131,13 @@ time = 10:30:00
 
     #[test]
     fn offset_datetime_with_space_normalized() {
-        // No-op: input == expected for now
         valid(
             r#"
 utc = 2025-12-26 10:30:00Z
 "#,
             str![[r#"
 
-utc = 2025-12-26 10:30:00Z
+utc = 2025-12-26T10:30:00Z
 
 "#]],
         );
@@ -130,14 +145,13 @@ utc = 2025-12-26 10:30:00Z
 
     #[test]
     fn offset_datetime_with_timezone_normalized() {
-        // No-op: input == expected for now
         valid(
             r#"
 eastern = 2025-12-26 10:30:00-05:00
 "#,
             str![[r#"
 
-eastern = 2025-12-26 10:30:00-05:00
+eastern = 2025-12-26T10:30:00-05:00
 
 "#]],
         );
@@ -145,7 +159,6 @@ eastern = 2025-12-26 10:30:00-05:00
 
     #[test]
     fn datetime_in_array() {
-        // No-op: input == expected for now
         valid(
             r#"
 dates = [
@@ -156,8 +169,8 @@ dates = [
             str![[r#"
 
 dates = [
-    2025-12-26 10:30:00,
-    2025-12-27 11:00:00,
+    2025-12-26T10:30:00,
+    2025-12-27T11:00:00,
 ]
 
 "#]],
@@ -166,14 +179,13 @@ dates = [
 
     #[test]
     fn datetime_in_inline_table() {
-        // No-op: input == expected for now
         valid(
             r#"
 event = { start = 2025-12-26 10:30:00, end = 2025-12-26 12:00:00 }
 "#,
             str![[r#"
 
-event = { start = 2025-12-26 10:30:00, end = 2025-12-26 12:00:00 }
+event = { start = 2025-12-26T10:30:00, end = 2025-12-26T12:00:00 }
 
 "#]],
         );
@@ -181,7 +193,6 @@ event = { start = 2025-12-26 10:30:00, end = 2025-12-26 12:00:00 }
 
     #[test]
     fn mixed_datetime_formats() {
-        // No-op: input == expected for now
         valid(
             r#"
 with_t = 2025-12-26T10:30:00
@@ -192,7 +203,7 @@ time_only = 10:30:00
             str![[r#"
 
 with_t = 2025-12-26T10:30:00
-with_space = 2025-12-26 10:30:00
+with_space = 2025-12-26T10:30:00
 date_only = 2025-12-26
 time_only = 10:30:00
 
@@ -202,14 +213,13 @@ time_only = 10:30:00
 
     #[test]
     fn datetime_with_fractional_seconds() {
-        // No-op: input == expected for now
         valid(
             r#"
 precise = 2025-12-26 10:30:00.123456
 "#,
             str![[r#"
 
-precise = 2025-12-26 10:30:00.123456
+precise = 2025-12-26T10:30:00.123456
 
 "#]],
         );
@@ -218,14 +228,14 @@ precise = 2025-12-26 10:30:00.123456
     #[test]
     fn datetime_with_lowercase_t_normalized() {
         // RFC 3339 allows lowercase 't' as separator
-        // No-op: input == expected for now
+        // We normalize to uppercase 'T' for consistency
         valid(
             r#"
 created = 2025-12-26t10:30:00
 "#,
             str![[r#"
 
-created = 2025-12-26t10:30:00
+created = 2025-12-26T10:30:00
 
 "#]],
         );
@@ -233,14 +243,13 @@ created = 2025-12-26t10:30:00
 
     #[test]
     fn offset_datetime_with_positive_timezone() {
-        // No-op: input == expected for now
         valid(
             r#"
 tokyo = 2025-12-26 10:30:00+09:00
 "#,
             str![[r#"
 
-tokyo = 2025-12-26 10:30:00+09:00
+tokyo = 2025-12-26T10:30:00+09:00
 
 "#]],
         );
