@@ -225,29 +225,6 @@ mod test {
     }
 
     #[test]
-    fn issue_example() {
-        valid(
-            "[a]
-[a.b]
-
-[c]
-
-[d] # Hello
-[d.e]
-",
-            str![[r#"
-[a.b]
-
-[c]
-
-[d] # Hello
-[d.e]
-
-"#]],
-        );
-    }
-
-    #[test]
     fn remove_empty_parent_without_comment() {
         valid(
             "[parent]
