@@ -88,11 +88,8 @@ fn parse_table_name(tokens: &TomlTokens<'_>, start: usize, is_array: bool) -> (V
     while i < tokens.len() {
         match tokens.tokens[i].kind {
             TokenKind::SimpleKey => {
-                if let Some(decoded) = &tokens.tokens[i].decoded {
-                    name.push(decoded.to_string());
-                } else {
-                    name.push(tokens.tokens[i].raw.to_string());
-                }
+                let token = &tokens.tokens[i];
+                name.push(token.decoded.as_ref().unwrap_or(&token.raw).to_string());
             }
             TokenKind::KeySep | TokenKind::Whitespace => {}
             k if k == close_kind => {
@@ -155,16 +152,10 @@ fn check_has_content(tokens: &TomlTokens<'_>, start: usize) -> bool {
 }
 
 fn find_parent_names(tables: &[TableInfo]) -> HashSet<Vec<String>> {
-    let mut parents = HashSet::new();
-
-    for table in tables {
-        // Add all proper prefixes of this table's name
-        for len in 1..table.name.len() {
-            parents.insert(table.name[..len].to_vec());
-        }
-    }
-
-    parents
+    tables
+        .iter()
+        .flat_map(|t| (1..t.name.len()).map(|len| t.name[..len].to_vec()))
+        .collect()
 }
 
 fn should_remove(table: &TableInfo, parent_names: &HashSet<Vec<String>>) -> bool {
