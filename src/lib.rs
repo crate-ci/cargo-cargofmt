@@ -31,6 +31,7 @@ pub fn fmt_manifest(raw_input_text: &str, config: config::Config) -> Option<Stri
     let mut tokens = toml::TomlTokens::parse(&input);
 
     formatting::normalize_strings(&mut tokens);
+    formatting::normalize_datetime_separators(&mut tokens);
     formatting::trim_trailing_spaces(&mut tokens);
     formatting::normalize_space_separators(&mut tokens);
     formatting::constrain_blank_lines(

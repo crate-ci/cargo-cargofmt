@@ -1,4 +1,5 @@
 mod blank_lines;
+mod datetime;
 mod generated;
 mod indent;
 mod newline_style;
@@ -8,6 +9,7 @@ mod trailing_comma;
 mod trailing_spaces;
 
 pub use blank_lines::constrain_blank_lines;
+pub use datetime::normalize_datetime_separators;
 pub use generated::is_generated_file;
 pub use indent::normalize_indent;
 pub use newline_style::apply_newline_style;
