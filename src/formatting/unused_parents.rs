@@ -130,7 +130,7 @@ fn find_header_end(tokens: &TomlTokens<'_>, close_idx: usize) -> (usize, bool) {
     }
 
     // End of file without newline
-    (tokens.len().saturating_sub(1), has_comment)
+    (tokens.len() - 1, has_comment)
 }
 
 fn check_has_content(tokens: &TomlTokens<'_>, start: usize) -> bool {
