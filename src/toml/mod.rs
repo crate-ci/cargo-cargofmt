@@ -15,8 +15,8 @@ impl TokenIndices {
         Self { i: 0 }
     }
 
-    pub fn from_index(_i: usize) -> Self {
-        Self { i: 0 } // no-op, starts at 0
+    pub fn from_index(i: usize) -> Self {
+        Self { i }
     }
 
     pub fn next_index(&mut self, tokens: &TomlTokens<'_>) -> Option<usize> {
@@ -30,7 +30,12 @@ impl TokenIndices {
     }
 
     pub fn prev_index(&mut self, _tokens: &TomlTokens<'_>) -> Option<usize> {
-        None // no-op
+        if self.i > 0 {
+            self.i -= 1;
+            Some(self.i)
+        } else {
+            None
+        }
     }
 
     pub fn set_next_index(&mut self, i: usize) {
@@ -85,9 +90,8 @@ mod test {
     fn from_index_begins_at_position() {
         let tokens = TomlTokens::parse("a = 1");
         let mut indices = TokenIndices::from_index(2);
-        // no-op: starts at 0 regardless of argument
-        assert_eq!(indices.next_index(&tokens), Some(0));
-        assert_eq!(indices.next_index(&tokens), Some(1));
+        assert_eq!(indices.next_index(&tokens), Some(2));
+        assert_eq!(indices.next_index(&tokens), Some(3));
     }
 
     #[test]
@@ -106,7 +110,9 @@ mod test {
         indices.next_index(&tokens);
         indices.next_index(&tokens);
         // Now at position 2, prev_index should return Some(1)
-        assert_eq!(indices.prev_index(&tokens), None); // no-op returns None
+        assert_eq!(indices.prev_index(&tokens), Some(1));
+        assert_eq!(indices.prev_index(&tokens), Some(0));
+        assert_eq!(indices.prev_index(&tokens), None);
     }
 
     #[test]
@@ -120,7 +126,7 @@ mod test {
         while let Some(i) = indices.prev_index(&tokens) {
             reversed.push(i);
         }
-        // no-op returns empty
-        assert_eq!(reversed, vec![]);
+        let expected: Vec<usize> = (0..tokens.len()).rev().collect();
+        assert_eq!(reversed, expected);
     }
 }

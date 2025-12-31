@@ -1,8 +1,166 @@
+use std::collections::HashSet;
+
+use crate::toml::TokenIndices;
+use crate::toml::TokenKind;
+use crate::toml::TomlToken;
 use crate::toml::TomlTokens;
 
+struct Table {
+    name: Vec<String>,
+    /// First token of the table's range, including any leading comments.
+    start: usize,
+    /// Equal to next table's header index or token count.
+    end: usize,
+    is_array_table: bool,
+}
+
 #[tracing::instrument]
-pub fn remove_unused_parent_tables(_tokens: &mut TomlTokens<'_>) {
-    // no-op
+pub fn remove_unused_parent_tables(tokens: &mut TomlTokens<'_>) {
+    let tables = collect_tables(tokens);
+
+    if tables.is_empty() {
+        return;
+    }
+
+    let parent_names = find_parent_names(&tables);
+
+    for table in tables.iter().rev() {
+        if should_remove(table, tokens, &parent_names) {
+            for i in table.start..table.end {
+                tokens.tokens[i] = TomlToken::EMPTY;
+            }
+        }
+    }
+
+    tokens.trim_empty_whitespace();
+}
+
+fn collect_tables(tokens: &TomlTokens<'_>) -> Vec<Table> {
+    // First pass: find all headers and their starts (including leading comments)
+    let mut header_info: Vec<(usize, usize, bool)> = Vec::new(); // (header_idx, start, is_array)
+    let mut indices = TokenIndices::new();
+
+    while let Some(i) = indices.next_index(tokens) {
+        let kind = tokens.tokens[i].kind;
+        if matches!(kind, TokenKind::StdTableOpen | TokenKind::ArrayTableOpen) {
+            let start = find_start(tokens, i);
+            header_info.push((i, start, kind == TokenKind::ArrayTableOpen));
+        }
+    }
+
+    // Second pass: construct tables with end boundaries
+    let mut tables = Vec::new();
+    for (idx, &(header_idx, start, is_array_table)) in header_info.iter().enumerate() {
+        let end = match header_info.get(idx + 1) {
+            Some(&(next_header_idx, _, _)) => next_header_idx,
+            None => tokens.len(),
+        };
+        let (name, _) = parse_table_name(tokens, header_idx + 1);
+        tables.push(Table {
+            name,
+            start,
+            end,
+            is_array_table,
+        });
+    }
+
+    tables
+}
+
+fn find_start(tokens: &TomlTokens<'_>, header_idx: usize) -> usize {
+    if header_idx == 0 {
+        return 0;
+    }
+
+    let mut newline_count = 0;
+    let mut indices = TokenIndices::from_index(header_idx);
+
+    while let Some(i) = indices.prev_index(tokens) {
+        match tokens.tokens[i].kind {
+            TokenKind::Comment => {
+                // Adjacent comment is a leading comment
+                if newline_count == 1 {
+                    return i;
+                }
+                return header_idx;
+            }
+            TokenKind::Newline => {
+                newline_count += 1;
+                if newline_count > 1 {
+                    return header_idx;
+                }
+            }
+            TokenKind::Whitespace => {}
+            _ => return header_idx,
+        }
+    }
+
+    header_idx
+}
+
+fn parse_table_name(tokens: &TomlTokens<'_>, start: usize) -> (Vec<String>, usize) {
+    let mut name = Vec::new();
+    let mut indices = TokenIndices::from_index(start);
+
+    while let Some(i) = indices.next_index(tokens) {
+        match tokens.tokens[i].kind {
+            TokenKind::SimpleKey => {
+                let token = &tokens.tokens[i];
+                name.push(token.decoded.as_ref().unwrap_or(&token.raw).to_string());
+            }
+            TokenKind::KeySep | TokenKind::Whitespace => {}
+            _ => {
+                return (name, i);
+            }
+        }
+    }
+
+    (name, tokens.len().saturating_sub(1))
+}
+
+fn find_parent_names(tables: &[Table]) -> HashSet<Vec<String>> {
+    tables
+        .iter()
+        .flat_map(|t| (1..t.name.len()).map(|len| t.name[..len].to_vec()))
+        .collect()
+}
+
+fn should_remove(
+    table: &Table,
+    tokens: &TomlTokens<'_>,
+    parent_names: &HashSet<Vec<String>>,
+) -> bool {
+    if table.is_array_table {
+        return false;
+    }
+
+    if !parent_names.contains(&table.name) {
+        return false;
+    }
+
+    !has_body(tokens, table.start, table.end)
+}
+
+fn has_body(tokens: &TomlTokens<'_>, start: usize, end: usize) -> bool {
+    let mut in_header = false;
+
+    for i in start..end {
+        match tokens.tokens[i].kind {
+            TokenKind::StdTableOpen | TokenKind::ArrayTableOpen => {
+                in_header = true;
+            }
+            TokenKind::StdTableClose | TokenKind::ArrayTableClose => {
+                in_header = false;
+            }
+            TokenKind::Whitespace | TokenKind::Newline => {}
+            _ if !in_header => {
+                return true;
+            }
+            _ => {}
+        }
+    }
+
+    false
 }
 
 #[cfg(test)]
@@ -45,7 +203,6 @@ mod test {
 key = 1
 ",
             str![[r#"
-[parent]
 [parent.child]
 key = 1
 
@@ -62,9 +219,7 @@ key = 1
 [x.y]
 ",
             str![[r#"
-[a]
 [a.b]
-[x]
 [x.y]
 
 "#]],
@@ -80,8 +235,6 @@ key = 1
 key = 1
 ",
             str![[r#"
-[a]
-[a.b]
 [a.b.c]
 key = 1
 
@@ -157,7 +310,6 @@ other = 1
 ip = "10.0.0.1"
 "#,
             str![[r#"
-[servers]
 [[servers.production]]
 ip = "10.0.0.1"
 
@@ -213,15 +365,12 @@ value = 2
 deep = 3
 ",
             str![[r#"
-[a]
 [a.b]
 key = 1
 
 [c]
 value = 2
 
-[d]
-[d.e]
 [d.e.f]
 deep = 3
 
@@ -268,7 +417,6 @@ other = 123
 ["quoted".child]
 "#,
             str![[r#"
-["quoted"]
 ["quoted".child]
 
 "#]],
@@ -285,10 +433,8 @@ other = 123
 [c.d]
 ",
             str![[r#"
-[a]
 [a.b]
 
-[c]
 [c.d]
 
 "#]],
@@ -307,7 +453,6 @@ y = 2
             str![[r#"
 [a.first]
 x = 1
-[a]
 [a.second]
 y = 2
 
@@ -325,7 +470,6 @@ y = 2
             str![[r#"
 [parent.child]
 
-[parent]
 
 "#]],
         );
@@ -363,7 +507,6 @@ key = 1
 key = 1
 # comment
 
-[parent]
 
 "#]],
         );
@@ -396,7 +539,6 @@ key = 1
             str![[r#"
 # body comment
 
-[parent]
 [parent.child]
 
 "#]],
@@ -456,7 +598,6 @@ key = 1
 
 # body comment
 
-[parent]
 [parent.child]
 
 "#]],
@@ -547,8 +688,6 @@ key = 1
 [parent.child]
 ",
             str![[r#"
-[parent]
-
 [parent.child]
 
 "#]],
@@ -560,8 +699,6 @@ key = 1
         valid(
             "[parent]\n    \n[parent.child]\n",
             str![[r#"
-[parent]
-
 [parent.child]
 
 "#]],
@@ -597,7 +734,6 @@ key = 1
 [parent.child]
 key = 1",
             str![[r#"
-[parent]
 [parent.child]
 key = 1
 "#]],
