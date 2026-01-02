@@ -96,7 +96,7 @@ lto = true
 
 [package]
 name = "cargo-cargofmt"
-version = "0.1.1"
+version = "0.1.2"
 description = "Cargo file formatter"
 categories = []
 keywords = []
