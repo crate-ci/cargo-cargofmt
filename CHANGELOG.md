@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+- Normalize date/time separator to `T`
+- Remove unused parent tables
+
 ## [0.1.1] - 2025-12-12
 
 ## [0.1.0] - 2025-12-12
