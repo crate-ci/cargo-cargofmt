@@ -17,6 +17,7 @@ pub struct Config {
     pub trailing_comma: lists::SeparatorTactic,
     pub hard_tabs: bool,
     pub tab_spaces: usize,
+    pub max_width: usize,
 }
 
 impl Default for Config {
@@ -31,6 +32,7 @@ impl Default for Config {
             trailing_comma: lists::SeparatorTactic::Vertical,
             hard_tabs: false,
             tab_spaces: 4,
+            max_width: 100,
         }
     }
 }
@@ -65,3 +67,16 @@ fn find_config(mut path: &Path) -> Option<PathBuf> {
 }
 
 const CONFIG_FILE_NAMES: [&str; 2] = [".rustfmt.toml", "rustfmt.toml"];
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn max_width() {
+        assert_eq!(Config::default().max_width, 100);
+
+        let config: Config = toml::de::from_str("max_width = 80").unwrap();
+        assert_eq!(config.max_width, 80);
+    }
+}
