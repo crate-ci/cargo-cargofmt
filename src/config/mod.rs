@@ -17,6 +17,31 @@ pub struct Config {
     pub trailing_comma: lists::SeparatorTactic,
     pub hard_tabs: bool,
     pub tab_spaces: usize,
+    pub max_width: usize,
+    pub array_width: Option<usize>,
+    pub use_small_heuristics: options::UseSmallHeuristics,
+}
+
+impl Config {
+    /// Returns the effective array width.
+    ///
+    /// If `array_width` is explicitly set, returns that value.
+    /// Otherwise, calculates based on `use_small_heuristics`:
+    /// - `Default`: 60% of `max_width`
+    /// - `Off`: 0 (always vertical)
+    /// - `Max`: `max_width`
+    pub fn array_width(&self) -> usize {
+        self.array_width
+            .unwrap_or_else(|| self.heuristic_width(0.6))
+    }
+
+    fn heuristic_width(&self, percent: f64) -> usize {
+        match self.use_small_heuristics {
+            options::UseSmallHeuristics::Default => (self.max_width as f64 * percent) as usize,
+            options::UseSmallHeuristics::Off => 0,
+            options::UseSmallHeuristics::Max => self.max_width,
+        }
+    }
 }
 
 impl Default for Config {
@@ -31,6 +56,9 @@ impl Default for Config {
             trailing_comma: lists::SeparatorTactic::Vertical,
             hard_tabs: false,
             tab_spaces: 4,
+            max_width: 100,
+            array_width: None,
+            use_small_heuristics: options::UseSmallHeuristics::default(),
         }
     }
 }
@@ -65,3 +93,45 @@ fn find_config(mut path: &Path) -> Option<PathBuf> {
 }
 
 const CONFIG_FILE_NAMES: [&str; 2] = [".rustfmt.toml", "rustfmt.toml"];
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn max_width() {
+        assert_eq!(Config::default().max_width, 100);
+
+        let config: Config = toml::de::from_str("max_width = 80").unwrap();
+        assert_eq!(config.max_width, 80);
+    }
+
+    #[test]
+    fn array_width_uses_heuristics() {
+        // Default: 60% of max_width
+        let config = Config::default();
+        assert_eq!(config.array_width, None);
+        assert_eq!(config.array_width(), 60); // 60% of 100
+
+        let config: Config = toml::de::from_str("max_width = 80").unwrap();
+        assert_eq!(config.array_width(), 48); // 60% of 80
+
+        // Explicit array_width overrides heuristics
+        let config: Config = toml::de::from_str("max_width = 100\narray_width = 70").unwrap();
+        assert_eq!(config.array_width(), 70);
+    }
+
+    #[test]
+    fn use_small_heuristics_max() {
+        let config: Config =
+            toml::de::from_str("max_width = 100\nuse_small_heuristics = \"Max\"").unwrap();
+        assert_eq!(config.array_width(), 100); // equals max_width
+    }
+
+    #[test]
+    fn use_small_heuristics_off() {
+        let config: Config =
+            toml::de::from_str("max_width = 100\nuse_small_heuristics = \"Off\"").unwrap();
+        assert_eq!(config.array_width(), 0); // always vertical
+    }
+}
