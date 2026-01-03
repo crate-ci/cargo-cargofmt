@@ -65,12 +65,11 @@ mod test {
     /// - `trim_trailing_spaces`: trailing spaces after value
     /// - `normalize_datetime_separators`: space → `T` separator
     /// - `constrain_blank_lines`: collapses multiple blank lines
-    /// - `reflow_arrays`: array exceeding `max_width` (currently stub)
+    /// - `reflow_arrays`: array exceeding `max_width`
     /// - `adjust_trailing_comma`: adds comma to vertical arrays
     #[test]
     fn fmt_manifest_integration() {
         // concat! used for input to make trailing spaces visible
-        // Currently: no reflow (stub does nothing)
         let input = concat!(
             r#"name="test""#,
             "   \n", // trailing spaces
@@ -83,7 +82,12 @@ mod test {
         let expected = r#"name = "test"
 date = 2024-01-01T12:00:00
 
-deps = ["foo", "bar", "baz", "qux"]
+deps = [
+    "foo",
+    "bar",
+    "baz",
+    "qux",
+]
 "#;
         let config = config::Config {
             max_width: 30,
