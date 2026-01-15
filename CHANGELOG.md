@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+- Reflow arrays to either single or multi-line (and adjust trailing commas) based on `array_max_width`, `max_width`, and `use_small_heuristics`
+
 ## [0.1.2] - 2026-01-02
 
 - Normalize date/time separator to `T`
