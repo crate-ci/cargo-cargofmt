@@ -135,6 +135,7 @@ toml_parser = { version = "1.0.4", features = ["simd"] }
 toml_writer = "1.0.4"
 tracing = "0.1.43"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+unicode-width = "0.2"
 
 [target.'cfg(target_has_atomic = "64")'.dependencies]
 tracing-chrome = "0.7.2"
