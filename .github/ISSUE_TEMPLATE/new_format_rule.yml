@@ -54,5 +54,9 @@ body:
       required: true
   - type: textarea
     attributes:
+      label: Equivalent Rust behavior
+      description: If there is an equivalent rule for Rust, how does it work?
+  - type: textarea
+    attributes:
       label: Additional Context
       description: Add any other context about the problem here.
