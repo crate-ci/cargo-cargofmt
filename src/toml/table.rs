@@ -12,6 +12,7 @@ pub struct Table {
 }
 
 impl Table {
+    #[tracing::instrument(skip_all)]
     pub fn new(tokens: &TomlTokens<'_>) -> Vec<Table> {
         // First pass: find all headers and their starts (including leading comments)
         let mut header_info: Vec<(usize, usize, bool)> = Vec::new(); // (header_idx, start, is_array)
