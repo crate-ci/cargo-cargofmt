@@ -1,5 +1,8 @@
+mod table;
 mod tokens;
 
+pub use table::collect_tables;
+pub use table::Table;
 pub use tokens::Encoding;
 pub use tokens::ScalarKind;
 pub use tokens::TokenKind;
