@@ -11,6 +11,7 @@ pub struct TomlTokens<'i> {
 }
 
 impl<'i> TomlTokens<'i> {
+    #[tracing::instrument(skip_all)]
     pub fn parse(input: &'i str) -> Self {
         let source = toml_parser::Source::new(input);
         let tokens = source.lex().into_vec();
