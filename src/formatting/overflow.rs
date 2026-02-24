@@ -13,18 +13,31 @@ const ARRAY_BRACKETS_WIDTH: usize = 2;
 /// Display width of comma plus space: `, `.
 const COMMA_SPACE_WIDTH: usize = 2;
 
-/// Normalize array layouts based on `array_width`.
+/// Normalize array layouts based on `max_width` and `array_width`.
 ///
-/// - Expands horizontal arrays to vertical when they exceed `array_width`
-/// - Collapses vertical arrays to horizontal when they fit within `array_width`
+/// - Expands horizontal arrays to vertical when the full line exceeds
+///   `max_width` **or** the array content alone exceeds `array_width`
+/// - Collapses vertical arrays to horizontal when the collapsed line fits
+///   within `max_width` (the hard limit)
 /// - Normalizes mixed-style arrays to proper vertical format
 /// - Preserves arrays containing comments (no collapse, but normalizes layout)
 /// - Comments are preserved in their relative positions during normalization
 ///
+/// `max_width`   – hard line-length limit (mirrors rustfmt's `max_width`,
+///                 default 100).  Used as the collapse threshold.
+/// `array_width` – soft array-content limit (mirrors rustfmt's `array_width`,
+///                 default 60 % of `max_width`).  Used as the expand threshold
+///                 for the array content width.
+///
 /// Uses incremental depth tracking for O(n) complexity instead of
 /// rescanning from the start for each array.
 #[tracing::instrument]
-pub fn reflow_arrays(tokens: &mut TomlTokens<'_>, array_width: usize, tab_spaces: usize) {
+pub fn reflow_arrays(
+    tokens: &mut TomlTokens<'_>,
+    max_width: usize,
+    array_width: usize,
+    tab_spaces: usize,
+) {
     let mut indices = TokenIndices::new();
     let mut inline_table_depth = 0usize;
     let mut nesting_depth = 0usize;
@@ -45,6 +58,7 @@ pub fn reflow_arrays(tokens: &mut TomlTokens<'_>, array_width: usize, tab_spaces
                     i,
                     inline_table_depth,
                     nesting_depth,
+                    max_width,
                     array_width,
                     tab_spaces,
                 );
@@ -64,6 +78,7 @@ fn process_array(
     open_index: usize,
     inline_table_depth: usize,
     nesting_depth: usize,
+    max_width: usize,
     array_width: usize,
     tab_spaces: usize,
 ) {
@@ -71,6 +86,7 @@ fn process_array(
         tokens,
         open_index,
         inline_table_depth,
+        max_width,
         array_width,
         tab_spaces,
     ) {
@@ -80,7 +96,7 @@ fn process_array(
             action,
             tab_spaces,
             nesting_depth,
-            array_width,
+            max_width,
         );
     }
 }
@@ -104,6 +120,7 @@ fn determine_array_action(
     tokens: &TomlTokens<'_>,
     open: usize,
     inline_table_depth: usize,
+    max_width: usize,
     array_width: usize,
     tab_spaces: usize,
 ) -> Option<ArrayAction> {
@@ -115,9 +132,12 @@ fn determine_array_action(
     let close = find_array_close(tokens, open)?;
 
     if is_array_vertical(tokens, open, close) {
-        determine_vertical_array_action(tokens, open, close, array_width, tab_spaces)
+        // Vertical arrays only need max_width (collapse threshold).
+        // array_width is the expand threshold and is only relevant for
+        // horizontal arrays, so it is not forwarded here.
+        determine_vertical_array_action(tokens, open, close, max_width, tab_spaces)
     } else {
-        determine_horizontal_array_action(tokens, open, close, array_width, tab_spaces)
+        determine_horizontal_array_action(tokens, open, close, max_width, array_width, tab_spaces)
     }
 }
 
@@ -126,12 +146,14 @@ fn determine_vertical_array_action(
     tokens: &TomlTokens<'_>,
     open: usize,
     close: usize,
-    array_width: usize,
+    max_width: usize,
     tab_spaces: usize,
 ) -> Option<ArrayAction> {
     let comment_pos = comment_position(tokens, open, close);
 
-    if should_collapse_array(tokens, open, close, array_width, tab_spaces) {
+    // Collapse check uses max_width: the collapsed line must fit within the
+    // hard line-length limit, not the softer array_width heuristic.
+    if should_collapse_array(tokens, open, close, max_width, tab_spaces) {
         return match comment_pos {
             CommentPosition::LastElementOnly => Some(ArrayAction::CollapseWithComment { close }),
             _ => Some(ArrayAction::Collapse { close }),
@@ -164,10 +186,11 @@ fn determine_horizontal_array_action(
     tokens: &TomlTokens<'_>,
     open: usize,
     close: usize,
+    max_width: usize,
     array_width: usize,
     tab_spaces: usize,
 ) -> Option<ArrayAction> {
-    if should_reflow_array(tokens, open, close, array_width, tab_spaces) {
+    if should_reflow_array(tokens, open, close, max_width, array_width, tab_spaces) {
         Some(ArrayAction::Expand { close })
     } else {
         None
@@ -175,13 +198,16 @@ fn determine_horizontal_array_action(
 }
 
 /// Apply the determined action to an array.
+///
+/// `max_width` is forwarded to `reflow_grouped` so that horizontal grouping
+/// respects the same hard line-length limit used everywhere else.
 fn apply_array_action(
     tokens: &mut TomlTokens<'_>,
     open: usize,
     action: ArrayAction,
     tab_spaces: usize,
     nesting_depth: usize,
-    array_width: usize,
+    max_width: usize,
 ) {
     match action {
         ArrayAction::Collapse { close } => {
@@ -199,27 +225,46 @@ fn apply_array_action(
             reflow_array_to_vertical(tokens, open, new_close, tab_spaces, nesting_depth);
         }
         ArrayAction::ReflowGrouped { close } => {
-            reflow_grouped(tokens, open, close, tab_spaces, nesting_depth, array_width);
+            reflow_grouped(tokens, open, close, tab_spaces, nesting_depth, max_width);
         }
     }
 }
 
 /// Check if a horizontal array should be expanded to vertical layout.
+///
+/// Expansion is triggered when **either** condition holds:
+///
+/// 1. The full line (key prefix + array) exceeds `max_width` — the hard
+///    line-length limit that mirrors rustfmt's `max_width`.
+/// 2. The array content alone (from `[` to `]` inclusive) exceeds
+///    `array_width` — the soft array-content threshold that mirrors
+///    rustfmt's `array_width` (default 60 % of `max_width`).
+///
+/// Using both thresholds matches rustfmt's behaviour: a short key with a
+/// wide array expands via condition 2 even if the full line is under 100
+/// chars; a long key with a short array expands via condition 1.
 fn should_reflow_array(
     tokens: &TomlTokens<'_>,
     open_index: usize,
     close_index: usize,
+    max_width: usize,
     array_width: usize,
     tab_spaces: usize,
 ) -> bool {
-    // Calculate line width including the array
+    // Full line width: from the start of the line through the closing `]`.
     let line_start = find_line_start(tokens, open_index);
     let line_width: usize = tokens.tokens[line_start..=close_index]
         .iter()
         .map(|t| token_width(&t.raw, tab_spaces))
         .sum();
 
-    line_width > array_width
+    // Array-content width: from `[` through `]` inclusive.
+    let array_content_width: usize = tokens.tokens[open_index..=close_index]
+        .iter()
+        .map(|t| token_width(&t.raw, tab_spaces))
+        .sum();
+
+    line_width > max_width || array_content_width > array_width
 }
 
 /// Check if array already has vertical layout (contains newlines).
@@ -479,7 +524,7 @@ fn reflow_grouped(
     close_index: usize,
     tab_spaces: usize,
     nesting_depth: usize,
-    array_width: usize,
+    max_width: usize,
 ) {
     // Detect standalone trailing comment BEFORE collapse (comment on its own line at the end)
     let has_standalone_trailing_comment =
@@ -497,7 +542,7 @@ fn reflow_grouped(
     let config = GroupingConfig {
         indent: make_indent(nesting_depth + 1, tab_spaces),
         close_indent: make_indent(nesting_depth, tab_spaces),
-        array_width,
+        max_width,
         tab_spaces,
         has_standalone_trailing_comment,
     };
@@ -584,7 +629,8 @@ fn skip_backwards(
 struct GroupingConfig {
     indent: String,
     close_indent: String,
-    array_width: usize,
+    /// Hard line-length limit; elements are wrapped before this is exceeded.
+    max_width: usize,
     tab_spaces: usize,
     has_standalone_trailing_comment: bool,
 }
@@ -692,7 +738,7 @@ fn handle_comma_insertion(
     match peek_after_comma(tokens, comma_index, close_index, config.tab_spaces) {
         NextAfterComma::Element { width, index } => {
             let projected_width = state.current_line_width + 2 + width; // ", " + element
-            if projected_width > config.array_width {
+            if projected_width > config.max_width {
                 state.insert_newline(index);
             } else {
                 state.update_width(projected_width);
@@ -1118,11 +1164,19 @@ fn collapsed_token_contribution(
 }
 
 /// Check if a vertical/mixed array should be collapsed to horizontal.
+///
+/// Collapse is allowed when the full collapsed line fits within `max_width`
+/// — the hard line-length limit.  Using `array_width` here was wrong: it is
+/// a *content-width* heuristic (60 % of `max_width` by default) meant only
+/// for the expand decision, and applying it to collapse made the formatter
+/// refuse to collapse arrays whose collapsed form was perfectly fine (e.g.
+/// 70 chars is fine with `max_width = 100` but was blocked by `array_width =
+/// 60`).
 fn should_collapse_array(
     tokens: &TomlTokens<'_>,
     open_index: usize,
     close_index: usize,
-    array_width: usize,
+    max_width: usize,
     tab_spaces: usize,
 ) -> bool {
     // Check comment position - only collapse if no comments or comment only on last element
@@ -1131,10 +1185,10 @@ fn should_collapse_array(
         CommentPosition::NonLastElement | CommentPosition::BeforeClose => return false,
     }
 
-    // Calculate collapsed width (including any trailing comment)
+    // Calculate collapsed width (full line: key prefix + array)
     let collapsed_width = calculate_collapsed_width(tokens, open_index, close_index, tab_spaces);
 
-    collapsed_width <= array_width
+    collapsed_width <= max_width
 }
 
 /// Position of comments within an array.
@@ -1463,10 +1517,16 @@ mod test {
 
     const DEFAULT_TAB_SPACES: usize = 4;
 
+    /// Test helper that passes the same value for both `max_width` and
+    /// `array_width`.  This is equivalent to `use_small_heuristics = "Max"`
+    /// and keeps all pre-existing tests working without modification, because
+    /// when both thresholds are equal the new two-threshold logic is
+    /// identical to the old single-threshold logic.
     #[track_caller]
     fn valid(input: &str, max_width: usize, expected: impl IntoData) {
         let mut tokens = TomlTokens::parse(input);
-        super::reflow_arrays(&mut tokens, max_width, DEFAULT_TAB_SPACES);
+        // array_width == max_width  →  same behaviour as before the refactor
+        super::reflow_arrays(&mut tokens, max_width, max_width, DEFAULT_TAB_SPACES);
         let actual = tokens.to_string();
 
         assert_data_eq!(&actual, expected);
@@ -2758,6 +2818,170 @@ x = [
             20,
             str![[r#"
 x = [   ]
+
+"#]],
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Tests for correct max_width vs array_width semantics
+    //
+    // The production code receives BOTH max_width (hard line limit) and
+    // array_width (array-content soft limit) separately.  The helper
+    // `valid_heuristic` exercises this split so we can prove:
+    //
+    //   • collapse threshold = max_width  (not array_width)
+    //   • expand  threshold  = max_width OR array_content > array_width
+    // -----------------------------------------------------------------------
+
+    /// Variant of `valid` that passes distinct max_width / array_width values.
+    #[track_caller]
+    fn valid_heuristic(input: &str, max_width: usize, array_width: usize, expected: impl IntoData) {
+        let mut tokens = TomlTokens::parse(input);
+        super::reflow_arrays(&mut tokens, max_width, array_width, DEFAULT_TAB_SPACES);
+        let actual = tokens.to_string();
+
+        assert_data_eq!(&actual, expected);
+
+        let (_, errors) = toml::de::DeTable::parse_recoverable(&actual);
+        if !errors.is_empty() {
+            use std::fmt::Write as _;
+            let mut result = String::new();
+            writeln!(&mut result, "---").unwrap();
+            for error in errors {
+                writeln!(&mut result, "{error}").unwrap();
+                writeln!(&mut result, "---").unwrap();
+            }
+            panic!("failed to parse\n---\n{actual}\n{result}");
+        }
+    }
+
+    // ----- collapse uses max_width, not array_width -------------------------
+
+    #[test]
+    fn collapse_uses_max_width_not_array_width() {
+        // Collapsed line = 70 chars:
+        //   "a_very_long_key_name = [\"first\", \"second\", \"third\", \"fourth\", \"fifth\"]"
+        //
+        // max_width  = 100  →  70 ≤ 100  →  SHOULD collapse  (correct behaviour)
+        // array_width =  60  →  70 > 60   →  old code would NOT collapse  (bug)
+        valid_heuristic(
+            r#"a_very_long_key_name = [
+    "first",
+    "second",
+    "third",
+    "fourth",
+    "fifth",
+]
+"#,
+            100, // max_width
+            60,  // array_width (default 60 % heuristic with max_width = 100)
+            str![[r#"
+a_very_long_key_name = ["first", "second", "third", "fourth", "fifth"]
+
+"#]],
+        );
+    }
+
+    #[test]
+    fn no_collapse_when_exceeds_max_width() {
+        // Collapsed line = 70 chars; max_width = 60 → must stay vertical.
+        valid_heuristic(
+            r#"a_very_long_key_name = [
+    "first",
+    "second",
+    "third",
+    "fourth",
+    "fifth",
+]
+"#,
+            60, // max_width
+            36, // array_width (60 % of 60)
+            str![[r#"
+a_very_long_key_name = [
+    "first",
+    "second",
+    "third",
+    "fourth",
+    "fifth",
+]
+
+"#]],
+        );
+    }
+
+    // ----- expand uses array_width for array content, max_width for line ----
+
+    #[test]
+    fn expand_when_array_content_exceeds_array_width() {
+        // Line = 14 chars (well under max_width = 100).
+        // Array content ["abc"] = 7 chars > array_width = 5 → SHOULD expand.
+        valid_heuristic(
+            r#"deps = ["abc"]
+"#,
+            100, // max_width  – line fits within this
+            5,   // array_width – array content (7) exceeds this
+            str![[r#"
+deps = [
+    "abc",
+]
+
+"#]],
+        );
+    }
+
+    #[test]
+    fn no_expand_when_both_under_threshold() {
+        // Line = 14 chars ≤ max_width = 100.
+        // Array content = 7 chars ≤ array_width = 10.  → keep horizontal.
+        valid_heuristic(
+            r#"deps = ["abc"]
+"#,
+            100, // max_width
+            10,  // array_width  – array content fits
+            str![[r#"
+deps = ["abc"]
+
+"#]],
+        );
+    }
+
+    #[test]
+    fn expand_when_full_line_exceeds_max_width() {
+        // Long key makes full line exceed max_width even though array content
+        // is small.
+        // "a_very_long_key_name_here = [\"x\"]" = 34 chars
+        // max_width = 20 → 34 > 20 → SHOULD expand.
+        valid_heuristic(
+            r#"a_very_long_key_name_here = ["x"]
+"#,
+            20,  // max_width  – full line exceeds
+            100, // array_width – array content is tiny, would not trigger alone
+            str![[r#"
+a_very_long_key_name_here = [
+    "x",
+]
+
+"#]],
+        );
+    }
+
+    // ----- use_small_heuristics = "Max" equivalence -------------------------
+
+    #[test]
+    fn max_heuristic_collapse_and_expand_same_threshold() {
+        // When array_width == max_width the behaviour is identical to the
+        // pre-fix code (both thresholds equal).
+        valid_heuristic(
+            r#"x = [
+    "a",
+    "b",
+]
+"#,
+            14, // max_width
+            14, // array_width == max_width  ("Max" heuristic)
+            str![[r#"
+x = ["a", "b"]
 
 "#]],
         );
