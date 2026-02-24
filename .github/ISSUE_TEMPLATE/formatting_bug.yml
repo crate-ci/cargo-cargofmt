@@ -1,10 +1,7 @@
 name: Formatting bug
 description: TOML is not being produced as expected
-labels: ["C-bug", "S-triage"]
 body:
   - type: textarea
     attributes:
       label: Description
       description: Please describe the problem you are having
-    validations:
-      required: true
