@@ -17,7 +17,7 @@ pub fn remove_unused_parent_tables(tokens: &mut TomlTokens<'_>) {
 
     for table in tables.iter().rev() {
         if should_remove(table, tokens, &parent_names) {
-            for i in table.start..table.end {
+            for i in table.span() {
                 tokens.tokens[i] = TomlToken::EMPTY;
             }
         }
@@ -29,7 +29,7 @@ pub fn remove_unused_parent_tables(tokens: &mut TomlTokens<'_>) {
 fn find_parent_names(tables: &[Table]) -> HashSet<Vec<String>> {
     tables
         .iter()
-        .flat_map(|t| (1..t.name.len()).map(|len| t.name[..len].to_vec()))
+        .flat_map(|t| (1..t.name().len()).map(|len| t.name()[..len].to_vec()))
         .collect()
 }
 
@@ -38,21 +38,21 @@ fn should_remove(
     tokens: &TomlTokens<'_>,
     parent_names: &HashSet<Vec<String>>,
 ) -> bool {
-    if table.is_array_table {
+    if table.is_array_table() {
         return false;
     }
 
-    if !parent_names.contains(&table.name) {
+    if !parent_names.contains(table.name()) {
         return false;
     }
 
-    !has_body(tokens, table.start, table.end)
+    !has_body(tokens, table.span())
 }
 
-fn has_body(tokens: &TomlTokens<'_>, start: usize, end: usize) -> bool {
+fn has_body(tokens: &TomlTokens<'_>, span: std::ops::Range<usize>) -> bool {
     let mut in_header = false;
 
-    for i in start..end {
+    for i in span {
         match tokens.tokens[i].kind {
             TokenKind::StdTableOpen | TokenKind::ArrayTableOpen => {
                 in_header = true;

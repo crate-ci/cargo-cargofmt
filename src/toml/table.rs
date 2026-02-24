@@ -3,12 +3,12 @@ use super::TokenKind;
 use super::TomlTokens;
 
 pub struct Table {
-    pub name: Vec<String>,
+    name: Vec<String>,
     /// First token of the table's range, including any leading comments.
-    pub start: usize,
+    start: usize,
     /// Equal to next table's header index or token count.
-    pub end: usize,
-    pub is_array_table: bool,
+    end: usize,
+    is_array_table: bool,
 }
 
 impl Table {
@@ -43,6 +43,18 @@ impl Table {
         }
 
         tables
+    }
+
+    pub fn name(&self) -> &[String] {
+        &self.name
+    }
+
+    pub fn span(&self) -> std::ops::Range<usize> {
+        self.start..self.end
+    }
+
+    pub fn is_array_table(&self) -> bool {
+        self.is_array_table
     }
 }
 
