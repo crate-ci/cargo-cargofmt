@@ -1,4 +1,4 @@
-name: Formatting bug
+name: New formatting rule
 description: TOML is not being produced as expected
 labels: ["C-enhancement", "S-triage"]
 body:
