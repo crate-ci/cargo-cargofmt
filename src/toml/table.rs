@@ -11,36 +11,38 @@ pub struct Table {
     pub is_array_table: bool,
 }
 
-pub fn collect_tables(tokens: &TomlTokens<'_>) -> Vec<Table> {
-    // First pass: find all headers and their starts (including leading comments)
-    let mut header_info: Vec<(usize, usize, bool)> = Vec::new(); // (header_idx, start, is_array)
-    let mut indices = TokenIndices::new();
+impl Table {
+    pub fn new(tokens: &TomlTokens<'_>) -> Vec<Table> {
+        // First pass: find all headers and their starts (including leading comments)
+        let mut header_info: Vec<(usize, usize, bool)> = Vec::new(); // (header_idx, start, is_array)
+        let mut indices = TokenIndices::new();
 
-    while let Some(i) = indices.next_index(tokens) {
-        let kind = tokens.tokens[i].kind;
-        if matches!(kind, TokenKind::StdTableOpen | TokenKind::ArrayTableOpen) {
-            let start = find_start(tokens, i);
-            header_info.push((i, start, kind == TokenKind::ArrayTableOpen));
+        while let Some(i) = indices.next_index(tokens) {
+            let kind = tokens.tokens[i].kind;
+            if matches!(kind, TokenKind::StdTableOpen | TokenKind::ArrayTableOpen) {
+                let start = find_start(tokens, i);
+                header_info.push((i, start, kind == TokenKind::ArrayTableOpen));
+            }
         }
-    }
 
-    // Second pass: construct tables with end boundaries
-    let mut tables = Vec::new();
-    for (idx, &(header_idx, start, is_array_table)) in header_info.iter().enumerate() {
-        let end = match header_info.get(idx + 1) {
-            Some(&(next_header_idx, _, _)) => next_header_idx,
-            None => tokens.len(),
-        };
-        let (name, _) = parse_table_name(tokens, header_idx + 1);
-        tables.push(Table {
-            name,
-            start,
-            end,
-            is_array_table,
-        });
-    }
+        // Second pass: construct tables with end boundaries
+        let mut tables = Vec::new();
+        for (idx, &(header_idx, start, is_array_table)) in header_info.iter().enumerate() {
+            let end = match header_info.get(idx + 1) {
+                Some(&(next_header_idx, _, _)) => next_header_idx,
+                None => tokens.len(),
+            };
+            let (name, _) = parse_table_name(tokens, header_idx + 1);
+            tables.push(Table {
+                name,
+                start,
+                end,
+                is_array_table,
+            });
+        }
 
-    tables
+        tables
+    }
 }
 
 fn find_start(tokens: &TomlTokens<'_>, header_idx: usize) -> usize {

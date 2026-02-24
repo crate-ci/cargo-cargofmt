@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use crate::toml::collect_tables;
 use crate::toml::Table;
 use crate::toml::TokenKind;
 use crate::toml::TomlToken;
@@ -8,7 +7,7 @@ use crate::toml::TomlTokens;
 
 #[tracing::instrument]
 pub fn remove_unused_parent_tables(tokens: &mut TomlTokens<'_>) {
-    let tables = collect_tables(tokens);
+    let tables = Table::new(tokens);
 
     if tables.is_empty() {
         return;
