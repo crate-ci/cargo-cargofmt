@@ -300,7 +300,7 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
             let mut stream = String::new();
             snapbox::report::write_diff(
                 &mut stream,
-                &raw_input_text.into(),
+                &raw_input_text.clone().into(),
                 &formatted.into(),
                 Some(&name),
                 None,
@@ -386,7 +386,7 @@ fn get_packages_recursive<'m>(
     packages: &mut BTreeMap<PackageId, &'m Package>,
 ) -> Result<(), io::Error> {
     for package in &metadata.packages {
-        if packages.insert(package.id.clone(), package).is_none() {
+        if packages.insert(package.id.clone(), package).is_some() {
             continue;
         }
 

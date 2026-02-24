@@ -9,6 +9,7 @@ mod string;
 mod trailing_comma;
 mod trailing_spaces;
 mod unused_parents;
+mod array_heuristics;
 
 pub use blank_lines::constrain_blank_lines;
 pub use datetime::normalize_datetime_separators;
@@ -21,3 +22,4 @@ pub use string::normalize_strings;
 pub use trailing_comma::adjust_trailing_comma;
 pub use trailing_spaces::trim_trailing_spaces;
 pub use unused_parents::remove_unused_parent_tables;
+pub use array_heuristics::apply_array_heuristics;
