@@ -24,7 +24,12 @@ const COMMA_SPACE_WIDTH: usize = 2;
 /// Uses incremental depth tracking for O(n) complexity instead of
 /// rescanning from the start for each array.
 #[tracing::instrument]
-pub fn reflow_arrays(tokens: &mut TomlTokens<'_>, array_width: usize, tab_spaces: usize) {
+pub fn reflow_arrays(
+    tokens: &mut TomlTokens<'_>,
+    array_width: usize,
+    element_threshold: usize,
+    tab_spaces: usize,
+) {
     let mut indices = TokenIndices::new();
     let mut inline_table_depth = 0usize;
     let mut nesting_depth = 0usize;
@@ -46,6 +51,7 @@ pub fn reflow_arrays(tokens: &mut TomlTokens<'_>, array_width: usize, tab_spaces
                     inline_table_depth,
                     nesting_depth,
                     array_width,
+                    element_threshold,
                     tab_spaces,
                 );
                 nesting_depth += 1;
@@ -65,6 +71,7 @@ fn process_array(
     inline_table_depth: usize,
     nesting_depth: usize,
     array_width: usize,
+    element_threshold: usize,
     tab_spaces: usize,
 ) {
     if let Some(action) = determine_array_action(
@@ -72,6 +79,7 @@ fn process_array(
         open_index,
         inline_table_depth,
         array_width,
+        element_threshold,
         tab_spaces,
     ) {
         apply_array_action(
@@ -105,6 +113,7 @@ fn determine_array_action(
     open: usize,
     inline_table_depth: usize,
     array_width: usize,
+    element_threshold: usize,
     tab_spaces: usize,
 ) -> Option<ArrayAction> {
     // Skip arrays inside inline tables
@@ -117,7 +126,14 @@ fn determine_array_action(
     if is_array_vertical(tokens, open, close) {
         determine_vertical_array_action(tokens, open, close, array_width, tab_spaces)
     } else {
-        determine_horizontal_array_action(tokens, open, close, array_width, tab_spaces)
+        determine_horizontal_array_action(
+            tokens,
+            open,
+            close,
+            array_width,
+            element_threshold,
+            tab_spaces,
+        )
     }
 }
 
@@ -165,9 +181,17 @@ fn determine_horizontal_array_action(
     open: usize,
     close: usize,
     array_width: usize,
+    element_threshold: usize,
     tab_spaces: usize,
 ) -> Option<ArrayAction> {
-    if should_reflow_array(tokens, open, close, array_width, tab_spaces) {
+    if should_reflow_array(
+        tokens,
+        open,
+        close,
+        array_width,
+        element_threshold,
+        tab_spaces,
+    ) {
         Some(ArrayAction::Expand { close })
     } else {
         None
@@ -210,6 +234,7 @@ fn should_reflow_array(
     open_index: usize,
     close_index: usize,
     array_width: usize,
+    element_threshold: usize,
     tab_spaces: usize,
 ) -> bool {
     // Calculate line width including the array
@@ -219,7 +244,12 @@ fn should_reflow_array(
         .map(|t| token_width(&t.raw, tab_spaces))
         .sum();
 
-    line_width > array_width
+    if line_width > array_width {
+        return true;
+    }
+
+    let widths = collect_element_widths(tokens, open_index, close_index);
+    widths.iter().any(|&w| w > element_threshold)
 }
 
 /// Check if array already has vertical layout (contains newlines).
@@ -1464,9 +1494,14 @@ mod test {
     const DEFAULT_TAB_SPACES: usize = 4;
 
     #[track_caller]
-    fn valid(input: &str, max_width: usize, expected: impl IntoData) {
+    fn valid(input: &str, max_width: usize, element_threshold: usize, expected: impl IntoData) {
         let mut tokens = TomlTokens::parse(input);
-        super::reflow_arrays(&mut tokens, max_width, DEFAULT_TAB_SPACES);
+        super::reflow_arrays(
+            &mut tokens,
+            max_width,
+            element_threshold,
+            DEFAULT_TAB_SPACES,
+        );
         let actual = tokens.to_string();
 
         assert_data_eq!(&actual, expected);
@@ -1490,6 +1525,7 @@ mod test {
             r#"deps = ["a", "b"]
 "#,
             80,
+            10,
             str![[r#"
 deps = ["a", "b"]
 
@@ -1503,6 +1539,7 @@ deps = ["a", "b"]
             r#"deps = ["foo", "bar", "baz"]
 "#,
             20,
+            10,
             str![[r#"
 deps = [
     "foo",
@@ -1523,6 +1560,7 @@ deps = [
 ]
 "#,
             20,
+            10,
             str![[r#"
 deps = [
     "foo",
@@ -1539,6 +1577,7 @@ deps = [
             r#"matrix = [[1, 2, 3], [4, 5, 6]]
 "#,
             20,
+            10,
             str![[r#"
 matrix = [
     [1, 2, 3],
@@ -1555,6 +1594,7 @@ matrix = [
             r#"x = [[[1]]]
 "#,
             5,
+            10,
             str![[r#"
 x = [
     [
@@ -1574,6 +1614,7 @@ x = [
             r#"x = [[[1]]]
 "#,
             10,
+            10,
             str![[r#"
 x = [
     [[1]],
@@ -1589,6 +1630,7 @@ x = [
             r#"deps = [{name = "foo"}, {name = "bar"}]
 "#,
             30,
+            10,
             str![[r#"
 deps = [
     {name = "foo"},
@@ -1605,6 +1647,7 @@ deps = [
             r#"deps = []
 "#,
             10,
+            10,
             str![[r#"
 deps = []
 
@@ -1617,6 +1660,7 @@ deps = []
         valid(
             r#"a = [1, 2]
 "#,
+            10,
             10,
             str![[r#"
 a = [1, 2]
@@ -1631,6 +1675,7 @@ a = [1, 2]
             r#"a = [1, 2]
 "#,
             9,
+            10,
             str![[r#"
 a = [
     1,
@@ -1647,6 +1692,7 @@ a = [
             r#"a = [1]
 "#,
             0,
+            10,
             str![[r#"
 a = [
     1,
@@ -1662,6 +1708,7 @@ a = [
             r#"deps = ["foo", "bar", "baz", "qux", "quux"]
 "#,
             usize::MAX,
+            10,
             str![[r#"
 deps = ["foo", "bar", "baz", "qux", "quux"]
 
@@ -1675,6 +1722,7 @@ deps = ["foo", "bar", "baz", "qux", "quux"]
             r#"deps = [{name = "very-long-name", version = "1.0.0", features = ["a", "b"]}]
 "#,
             40,
+            10,
             str![[r#"
 deps = [
     {name = "very-long-name", version = "1.0.0", features = ["a", "b"]},
@@ -1690,6 +1738,7 @@ deps = [
             r#"dep = [{features = ["a", "b", "c"]}]
 "#,
             20,
+            10,
             str![[r#"
 dep = [
     {features = ["a", "b", "c"]},
@@ -1705,6 +1754,7 @@ dep = [
             r#"items = [{outer = {inner = "value"}}]
 "#,
             20,
+            10,
             str![[r#"
 items = [
     {outer = {inner = "value"}},
@@ -1720,6 +1770,7 @@ items = [
             r#"deps = ["foo", "bar"] # comment
 "#,
             20,
+            10,
             str![[r#"
 deps = [
     "foo",
@@ -1736,6 +1787,7 @@ deps = [
             r#"deps = ["foo", "bar",]
 "#,
             15,
+            10,
             str![[r#"
 deps = [
     "foo",
@@ -1752,6 +1804,7 @@ deps = [
             r#"deps = ["this-is-a-very-long-package-name"]
 "#,
             20,
+            10,
             str![[r#"
 deps = [
     "this-is-a-very-long-package-name",
@@ -1768,6 +1821,7 @@ deps = [
 keywords = ["cli", "toml", "formatter"]
 "#,
             30,
+            10,
             str![[r#"
 [package]
 keywords = [
@@ -1786,6 +1840,7 @@ keywords = [
             r#"names = ["日本語", "中文", "한국어"]
 "#,
             20,
+            10,
             str![[r#"
 names = [
     "日本語",
@@ -1808,6 +1863,7 @@ multi
 line
 """]
 "#,
+            10,
             10,
             str![[r#"
 items = [
@@ -1832,6 +1888,7 @@ multi
 ]
 "#,
             80,
+            10,
             // Collapsed form: array is horizontal but string still spans lines
             str![[r#"
 x = ["""
@@ -1853,6 +1910,7 @@ literal
 ]
 "#,
             80,
+            10,
             str![[r#"
 x = ['''
 literal
@@ -1869,6 +1927,7 @@ literal
             r#"foo.bar.baz = ["a", "b"]
 "#,
             23,
+            10,
             str![[r#"
 foo.bar.baz = [
     "a",
@@ -1885,6 +1944,7 @@ foo.bar.baz = [
             r#"foo.bar.baz = ["a", "b"]
 "#,
             24,
+            10,
             str![[r#"
 foo.bar.baz = ["a", "b"]
 
@@ -1898,6 +1958,7 @@ foo.bar.baz = ["a", "b"]
             r#""my.key" = ["x", "y"]
 "#,
             15,
+            10,
             str![[r#"
 "my.key" = [
     "x",
@@ -1914,6 +1975,7 @@ foo.bar.baz = ["a", "b"]
             r#"paths = ['foo', 'bar']
 "#,
             15,
+            10,
             str![[r#"
 paths = [
     'foo',
@@ -1930,6 +1992,7 @@ paths = [
             r#"mixed = [1, "two", true, 3.14]
 "#,
             20,
+            10,
             str![[r#"
 mixed = [
     1,
@@ -1951,6 +2014,7 @@ a = [1, 2, 3]
 b = [4, 5, 6, 7, 8]
 "#,
             15,
+            10,
             str![[r#"
 [pkg]
 a = [1, 2, 3]
@@ -1972,6 +2036,7 @@ b = [
             r#"x = ["a", "b", "c"]
 "#,
             15,
+            10,
             str![[r#"
 x = [
     "a",
@@ -1989,6 +2054,7 @@ x = [
             r#"x = ["", "a", ""]
 "#,
             12,
+            10,
             str![[r#"
 x = [
     "",
@@ -2006,6 +2072,7 @@ x = [
             r#"x = [[1, 2, 3, 4]]
 "#,
             12,
+            10,
             str![[r#"
 x = [
     [
@@ -2026,6 +2093,7 @@ x = [
             r#"this_is_a_very_long_key = [1]
 "#,
             20,
+            10,
             str![[r#"
 this_is_a_very_long_key = [
     1,
@@ -2046,6 +2114,7 @@ this_is_a_very_long_key = [
 ]
 "#,
             40,
+            10,
             str![[r#"
 x = ["a", "b"]
 
@@ -2062,6 +2131,7 @@ x = ["a", "b"]
     "bbb",
 ]
 "#,
+            10,
             10,
             str![[r#"
 x = [
@@ -2080,6 +2150,7 @@ x = [
     "c"]
 "#,
             40,
+            10,
             str![[r#"
 x = ["a", "b", "c"]
 
@@ -2094,6 +2165,7 @@ x = ["a", "b", "c"]
             r#"x = ["aaa", "bbb",
     "ccc"]
 "#,
+            10,
             10,
             str![[r#"
 x = [
@@ -2116,6 +2188,7 @@ x = [
 ]
 "#,
             80,
+            10,
             str![[r#"
 x = [
     "a", # comment
@@ -2136,6 +2209,7 @@ x = [
 ]
 "#,
             80,
+            10,
             str![[r#"
 x = [
     "a", "b", # comment
@@ -2158,6 +2232,7 @@ x = [
 ]
 "#,
             60,
+            10,
             str![[r#"
 deps = [
     "a",
@@ -2189,6 +2264,7 @@ deps = [
 ]
 "#,
             200,
+            10,
             str![[r#"
 deps = [
     "a", "b", # comment about elements below
@@ -2210,6 +2286,7 @@ deps = [
 ]
 "#,
             80,
+            10,
             str![[r#"
 x = [
     "a", "b", # comment
@@ -2231,6 +2308,7 @@ x = [
 ]
 "#,
             80,
+            10,
             str![[r#"
 x = [
     "a", "b",
@@ -2254,6 +2332,7 @@ x = [
 ]
 "#,
             40,
+            10,
             str![[r#"
 x = [[1], [2]]
 
@@ -2271,6 +2350,7 @@ x = [[1], [2]]
 ]
 "#,
             40,
+            10,
             str![[r#"
 x = ["a", "b"]
 
@@ -2288,6 +2368,7 @@ x = ["a", "b"]
 ]
 "#,
             40,
+            10,
             str![[r#"
 x = ["a", "b"]
 
@@ -2305,6 +2386,7 @@ x = ["a", "b"]
             r#"a = ["日"]
 "#,
             9,
+            10,
             str![[r#"
 a = [
     "日",
@@ -2322,6 +2404,7 @@ a = [
             r#"a = ["日"]
 "#,
             10,
+            10,
             str![[r#"
 a = ["日"]
 
@@ -2336,6 +2419,7 @@ a = ["日"]
             r#"a = ["🎉"]
 "#,
             9,
+            10,
             str![[r#"
 a = [
     "🎉",
@@ -2352,6 +2436,7 @@ a = [
             r#"a = ["🎉"]
 "#,
             10,
+            10,
             str![[r#"
 a = ["🎉"]
 
@@ -2367,6 +2452,7 @@ a = ["🎉"]
         valid(
             "a = [\"e\u{0301}\"]\n",
             9,
+            10,
             // Expected output preserves decomposed form (e + combining acute)
             "a = [\"e\u{0301}\"]\n",
         );
@@ -2378,6 +2464,7 @@ a = ["🎉"]
         valid(
             "a = [\"e\u{0301}\"]\n",
             8,
+            10,
             // Expected output preserves decomposed form (e + combining acute)
             "a = [\n    \"e\u{0301}\",\n]\n",
         );
@@ -2393,6 +2480,7 @@ a = ["🎉"]
 ]
 "#,
             16,
+            10,
             str![[r#"
 x = ["日", "月"]
 
@@ -2411,6 +2499,7 @@ x = ["日", "月"]
 ]
 "#,
             15,
+            10,
             str![[r#"
 x = [
     "日",
@@ -2427,6 +2516,7 @@ x = [
         valid(
             nested,
             5,
+            10,
             str![[r#"
 x = [
     [
@@ -2461,7 +2551,7 @@ x = [
         // Tab expands to 4 columns (DEFAULT_TAB_SPACES)
         // "x = [\t1]" = 1+1+1+1+1+4+1+1 = 11 display columns
         // At max_width=11: should NOT reflow
-        valid("x = [\t1]\n", 11, "x = [\t1]\n");
+        valid("x = [\t1]\n", 11, 10, "x = [\t1]\n");
     }
 
     #[test]
@@ -2469,7 +2559,7 @@ x = [
         // "x = [\t1]" = 11 display columns
         // At max_width=10: should reflow
         // Note: tab inside content is preserved
-        valid("x = [\t1]\n", 10, "x = [\n    \t1,\n]\n");
+        valid("x = [\t1]\n", 10, 10, "x = [\n    \t1,\n]\n");
     }
 
     #[test]
@@ -2478,6 +2568,7 @@ x = [
         valid(
             "x = [\n\t1,\n\t2,\n]\n",
             40,
+            10,
             str![[r#"
 x = [1, 2]
 
@@ -2490,6 +2581,7 @@ x = [1, 2]
         valid(
             "x = [\t\t1]\n",
             12,
+            10,
             str![[r#"
 x = [
     		1,
@@ -2511,6 +2603,7 @@ x = [
 ]
 "#,
             15,
+            10,
             str![[r#"
 x = [
     [
@@ -2534,6 +2627,7 @@ x = [
 ]
 "#,
             40,
+            10,
             str![[r#"
 x = [[1, 2]]
 
@@ -2547,6 +2641,7 @@ x = [[1, 2]]
             r#"x = [[1], [2]]
 "#,
             20,
+            10,
             str![[r#"
 x = [[1], [2]]
 
@@ -2559,6 +2654,7 @@ x = [[1], [2]]
         valid(
             r#"x = [[1], [2]]
 "#,
+            10,
             10,
             str![[r#"
 x = [
@@ -2575,6 +2671,7 @@ x = [
         valid(
             r#"x = [[1, 2, 3], [4, 5, 6]]
 "#,
+            10,
             10,
             str![[r#"
 x = [
@@ -2600,6 +2697,7 @@ x = [
             r#"x = [[1], [2], [3]]
 "#,
             15,
+            10,
             str![[r#"
 x = [
     [1],
@@ -2617,6 +2715,7 @@ x = [
             r#"x = [[1], [2, 3, 4, 5], [6]]
 "#,
             15,
+            10,
             str![[r#"
 x = [
     [1],
@@ -2641,6 +2740,7 @@ x = [
             r#"x = [[[1, 2]]]
 "#,
             5,
+            10,
             str![[r#"
 x = [
     [
@@ -2662,6 +2762,7 @@ x = [
             r#"x = [[[1]]]
 "#,
             8,
+            10,
             str![[r#"
 x = [
     [
@@ -2682,6 +2783,7 @@ x = [
 ]
 "#,
             80,
+            10,
             str![[r#"
 x = []
 
@@ -2697,6 +2799,7 @@ x = []
 ]
 "#,
             80,
+            10,
             str![[r#"
 x = []
 
@@ -2710,6 +2813,7 @@ x = []
             r#"x = ["abcdefghij"]
 "#,
             18,
+            20,
             str![[r#"
 x = ["abcdefghij"]
 
@@ -2723,6 +2827,7 @@ x = ["abcdefghij"]
             r#"x = ["abcdefghij"]
 "#,
             17,
+            10,
             str![[r#"
 x = [
     "abcdefghij",
@@ -2741,6 +2846,7 @@ x = [
             r#"x = ["a-b_c.d"]
 "#,
             14,
+            10,
             str![[r#"
 x = [
     "a-b_c.d",
@@ -2756,9 +2862,25 @@ x = [
             r#"x = [   ]
 "#,
             20,
+            10,
             str![[r#"
 x = [   ]
 
+"#]],
+        );
+    }
+
+    #[test]
+    fn element_width_threshold_triggers_reflow() {
+        valid(
+            r#"deps = ["short", "very-long-element-name"]"#,
+            100,
+            15,
+            str![[r#"
+deps = [
+    "short",
+    "very-long-element-name",
+]
 "#]],
         );
     }

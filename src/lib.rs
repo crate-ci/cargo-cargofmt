@@ -35,7 +35,12 @@ pub fn fmt_manifest(raw_input_text: &str, config: config::Config) -> Option<Stri
     formatting::remove_unused_parent_tables(&mut tokens);
     formatting::trim_trailing_spaces(&mut tokens);
     formatting::normalize_space_separators(&mut tokens);
-    formatting::reflow_arrays(&mut tokens, config.array_width(), config.tab_spaces);
+    formatting::reflow_arrays(
+        &mut tokens,
+        config.array_width(),
+        config.short_array_element_width_threshold,
+        config.tab_spaces,
+    );
     formatting::constrain_blank_lines(
         &mut tokens,
         config.blank_lines_lower_bound,
