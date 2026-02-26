@@ -20,6 +20,8 @@ pub struct Config {
     pub max_width: usize,
     pub array_width: Option<usize>,
     pub use_small_heuristics: options::UseSmallHeuristics,
+    pub comment_width: usize,
+    pub wrap_comments: bool,
 }
 
 impl Config {
@@ -59,6 +61,8 @@ impl Default for Config {
             max_width: 100,
             array_width: None,
             use_small_heuristics: options::UseSmallHeuristics::default(),
+            comment_width: 80,
+            wrap_comments: false,
         }
     }
 }
@@ -133,5 +137,27 @@ mod test {
         let config: Config =
             toml::de::from_str("max_width = 100\nuse_small_heuristics = \"Off\"").unwrap();
         assert_eq!(config.array_width(), 0); // always vertical
+    }
+
+    #[test]
+    fn comment_width_default() {
+        assert_eq!(Config::default().comment_width, 80);
+    }
+
+    #[test]
+    fn comment_width_configurable() {
+        let config: Config = toml::de::from_str("comment_width = 100").unwrap();
+        assert_eq!(config.comment_width, 100);
+    }
+
+    #[test]
+    fn wrap_comments_default() {
+        assert_eq!(Config::default().wrap_comments, false);
+    }
+
+    #[test]
+    fn wrap_comments_configurable() {
+        let config: Config = toml::de::from_str("wrap_comments = true").unwrap();
+        assert_eq!(config.wrap_comments, true);
     }
 }
