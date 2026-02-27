@@ -1,4 +1,5 @@
 mod blank_lines;
+mod comment;
 mod datetime;
 mod generated;
 mod indent;
@@ -11,6 +12,7 @@ mod trailing_spaces;
 mod unused_parents;
 
 pub use blank_lines::constrain_blank_lines;
+pub use comment::wrap_comment_lines;
 pub use datetime::normalize_datetime_separators;
 pub use generated::is_generated_file;
 pub use indent::normalize_indent;
