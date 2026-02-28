@@ -15,6 +15,7 @@ pub use datetime::normalize_datetime_separators;
 pub use generated::is_generated_file;
 pub use indent::normalize_indent;
 pub use newline_style::apply_newline_style;
+pub use overflow::check_line_overflow;
 pub use overflow::reflow_arrays;
 pub use space_separators::normalize_space_separators;
 pub use string::normalize_strings;

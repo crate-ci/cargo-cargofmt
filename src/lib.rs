@@ -5,10 +5,19 @@
 #![warn(clippy::print_stdout)]
 
 pub mod config;
+pub mod error;
 pub mod formatting;
 pub mod toml;
 
-pub fn fmt_manifest(raw_input_text: &str, config: config::Config) -> Option<String> {
+/// Result of formatting a manifest file.
+pub struct FormatResult {
+    /// The formatted text.
+    pub formatted: String,
+    /// Errors detected after formatting (e.g. line overflow).
+    pub errors: Vec<error::FormattingError>,
+}
+
+pub fn fmt_manifest(raw_input_text: &str, config: config::Config) -> Option<FormatResult> {
     if config.disable_all_formatting {
         return None;
     }
@@ -48,7 +57,17 @@ pub fn fmt_manifest(raw_input_text: &str, config: config::Config) -> Option<Stri
 
     formatting::apply_newline_style(config.newline_style, &mut formatted, raw_input_text);
 
-    Some(formatted)
+    // Separate pass: run all post-format error checks via error.rs.
+    let mut errors = Vec::new();
+
+    error::check_errors(
+        &formatted,
+        &mut errors,
+        config.error_on_line_overflow,
+        config.max_width,
+    );
+
+    Some(FormatResult { formatted, errors })
 }
 
 #[doc = include_str!("../README.md")]
