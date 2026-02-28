@@ -289,11 +289,11 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
         .map_err(io::Error::other)
         .map_err(Some)?;
 
-    let Some(formatted) = cargo_cargofmt::fmt_manifest(&raw_input_text, config) else {
+    let Some(format_result) = cargo_cargofmt::fmt_manifest(&raw_input_text, config) else {
         return Ok(());
     };
 
-    if raw_input_text != formatted {
+    if raw_input_text != format_result.formatted {
         if check {
             let name = package.manifest_path.as_std_path();
             let name = name.to_string_lossy();
@@ -301,7 +301,7 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
             snapbox::report::write_diff(
                 &mut stream,
                 &raw_input_text.into(),
-                &formatted.into(),
+                &format_result.formatted.into(),
                 Some(&name),
                 None,
                 snapbox::report::Palette::color(),
@@ -310,9 +310,24 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
             .map_err(Some)?;
             anstream::println!("{stream}");
         } else {
-            cargo_util::paths::write_atomic(package.manifest_path.as_std_path(), formatted)
-                .map_err(io::Error::other)
-                .map_err(Some)?;
+            cargo_util::paths::write_atomic(
+                package.manifest_path.as_std_path(),
+                format_result.formatted,
+            )
+            .map_err(io::Error::other)
+            .map_err(Some)?;
+        }
+    }
+
+    // Report any line overflow errors.
+    if !format_result.errors.is_empty() {
+        let name = package.manifest_path.as_std_path().to_string_lossy();
+        for err in &format_result.errors {
+            anstream::eprintln!("{}", err.display(&name));
+        }
+
+        if check {
+            return Err(None);
         }
     }
 
