@@ -1455,9 +1455,9 @@ fn make_indent(depth: usize, tab_spaces: usize) -> String {
 
 #[cfg(test)]
 mod test {
+    use snapbox::IntoData;
     use snapbox::assert_data_eq;
     use snapbox::str;
-    use snapbox::IntoData;
 
     use crate::toml::TomlTokens;
 

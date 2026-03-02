@@ -73,9 +73,9 @@ fn has_body(tokens: &TomlTokens<'_>, span: std::ops::Range<usize>) -> bool {
 
 #[cfg(test)]
 mod test {
+    use snapbox::IntoData;
     use snapbox::assert_data_eq;
     use snapbox::str;
-    use snapbox::IntoData;
 
     #[track_caller]
     fn valid(input: &str, expected: impl IntoData) {

@@ -58,7 +58,7 @@ impl<'i> TomlTokens<'i> {
         }
     }
 
-    pub fn indices(&self) -> impl Iterator<Item = usize> {
+    pub fn indices(&self) -> impl Iterator<Item = usize> + use<> {
         0..self.tokens.len()
     }
 
