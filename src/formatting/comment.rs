@@ -1,3 +1,7 @@
+use std::borrow::Cow;
+
+use crate::toml::{TokenIndices, TokenKind, TomlToken};
+
 /// Wraps standalone TOML comment lines that exceed `comment_width`.
 ///
 /// Inline comments are left untouched.
@@ -7,10 +11,144 @@
 /// - trailing spaces trimmed
 #[tracing::instrument]
 pub fn wrap_comment_lines<'i>(
-    _tokens: &mut crate::toml::TomlTokens<'i>,
-    _wrap: bool,
-    _comment_width: usize,
+    tokens: &mut crate::toml::TomlTokens<'i>,
+    wrap: bool,
+    comment_width: usize,
 ) {
+    if !wrap || comment_width == 0 {
+        return;
+    }
+
+    let mut col: usize = 0;
+    let mut at_line_start = true;
+    let mut indices = TokenIndices::new();
+    while let Some(i) = indices.next_index(tokens) {
+        match tokens.tokens[i].kind {
+            TokenKind::Newline => {
+                col = 0;
+                at_line_start = true;
+            }
+            TokenKind::Whitespace => {
+                col += tokens.tokens[i].raw.len();
+            }
+            TokenKind::Comment if at_line_start => {
+                if col + tokens.tokens[i].raw.len() <= comment_width {
+                    continue;
+                }
+
+                let (prefix, text) = {
+                    let raw = &*tokens.tokens[i].raw;
+                    let (p, t) = split_comment(raw);
+                    (p.to_owned(), t.to_owned())
+                };
+
+                let prefix_col = col + prefix.len();
+                if prefix_col >= comment_width {
+                    continue;
+                }
+                let available = comment_width - prefix_col;
+                let wrapped = word_wrap(&text, available);
+
+                if wrapped.len() <= 1 {
+                    continue;
+                }
+
+                let followed_by_nl = tokens
+                    .tokens
+                    .get(i + 1)
+                    .map_or(false, |t| t.kind == TokenKind::Newline);
+                if !followed_by_nl {
+                    continue;
+                }
+
+                let indent = if i > 0 && tokens.tokens[i - 1].kind == TokenKind::Whitespace {
+                    tokens.tokens[i - 1].raw.as_ref().to_owned()
+                } else {
+                    String::new()
+                };
+
+                tokens.tokens[i].raw = Cow::Owned(format!("{prefix}{}", wrapped[0]));
+
+                let mut new_tokens: Vec<TomlToken<'i>> = Vec::new();
+                for line in &wrapped[1..] {
+                    if !indent.is_empty() {
+                        new_tokens.push(TomlToken {
+                            kind: TokenKind::Whitespace,
+                            encoding: None,
+                            decoded: None,
+                            scalar: None,
+                            raw: Cow::Owned(indent.clone()),
+                        });
+                    }
+                    new_tokens.push(TomlToken {
+                        kind: TokenKind::Comment,
+                        encoding: None,
+                        decoded: None,
+                        scalar: None,
+                        raw: Cow::Owned(format!("{prefix}{line}")),
+                    });
+                    new_tokens.push(TomlToken::NL);
+                }
+
+                let n = new_tokens.len();
+                debug_assert_eq!(tokens.tokens[i].kind, TokenKind::Comment);
+                debug_assert_eq!(tokens.tokens[i + 1].kind, TokenKind::Newline);
+                tokens.tokens.splice(i + 2..i + 2, new_tokens);
+                indices.set_next_index(i + 2 + n);
+                col = 0;
+                at_line_start = true;
+            }
+            _ => {
+                col += tokens.tokens[i].raw.len();
+                at_line_start = false;
+            }
+        }
+    }
+}
+
+/// Returns `(prefix, text)` where prefix is the leading `#`s plus an optional space.
+fn split_comment(comment: &str) -> (&str, &str) {
+    let hash_end = comment
+        .char_indices()
+        .find(|(_, c)| *c != '#')
+        .map(|(i, _)| i)
+        .unwrap_or(comment.len());
+
+    let prefix_end = if comment[hash_end..].starts_with(' ') {
+        hash_end + 1
+    } else {
+        hash_end
+    };
+
+    (&comment[..prefix_end], &comment[prefix_end..])
+}
+
+/// Greedy word-wrap; words longer than `max_width` are kept whole on their own line.
+fn word_wrap(text: &str, max_width: usize) -> Vec<String> {
+    if max_width == 0 {
+        return vec![text.to_owned()];
+    }
+
+    let mut lines: Vec<String> = Vec::new();
+    let mut current = String::new();
+
+    for word in text.split_whitespace() {
+        if current.is_empty() {
+            current.push_str(word);
+        } else if current.len() + 1 + word.len() <= max_width {
+            current.push(' ');
+            current.push_str(word);
+        } else {
+            lines.push(std::mem::take(&mut current));
+            current.push_str(word);
+        }
+    }
+
+    if !current.is_empty() || lines.is_empty() {
+        lines.push(current);
+    }
+
+    lines
 }
 
 #[cfg(test)]
