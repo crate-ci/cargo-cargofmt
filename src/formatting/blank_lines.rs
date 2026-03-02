@@ -97,9 +97,9 @@ fn after_table_header(tokens: &crate::toml::TomlTokens<'_>, i: usize) -> bool {
 
 #[cfg(test)]
 mod test {
+    use snapbox::IntoData;
     use snapbox::assert_data_eq;
     use snapbox::str;
-    use snapbox::IntoData;
 
     #[track_caller]
     fn valid(input: &str, min: usize, max: usize, expected: impl IntoData) {

@@ -39,9 +39,9 @@ pub fn trim_trailing_spaces(tokens: &mut crate::toml::TomlTokens<'_>) {
 
 #[cfg(test)]
 mod test {
+    use snapbox::IntoData;
     use snapbox::assert_data_eq;
     use snapbox::str;
-    use snapbox::IntoData;
 
     #[track_caller]
     fn valid(input: &str, expected: impl IntoData) {

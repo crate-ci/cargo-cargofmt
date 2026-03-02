@@ -118,9 +118,9 @@ fn close_count(tokens: &crate::toml::TomlTokens<'_>, i: usize) -> usize {
 
 #[cfg(test)]
 mod test {
+    use snapbox::IntoData;
     use snapbox::assert_data_eq;
     use snapbox::str;
-    use snapbox::IntoData;
 
     #[track_caller]
     fn valid(input: &str, hard_tabs: bool, tab_spaces: usize, expected: impl IntoData) {

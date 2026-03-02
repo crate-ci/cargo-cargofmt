@@ -7,10 +7,6 @@ pub enum SeparatorTactic {
 
 impl SeparatorTactic {
     pub fn from_bool(b: bool) -> Self {
-        if b {
-            Self::Always
-        } else {
-            Self::Never
-        }
+        if b { Self::Always } else { Self::Never }
     }
 }

@@ -44,7 +44,7 @@ impl TokenIndices {
         self.i = i;
     }
 
-    pub fn rev(&self) -> impl Iterator<Item = usize> {
+    pub fn rev(&self) -> impl Iterator<Item = usize> + use<> {
         (0..self.i).rev()
     }
 }
