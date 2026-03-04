@@ -4,7 +4,7 @@ pub use toml_parser::decoder::Encoding;
 pub use toml_parser::decoder::ScalarKind;
 pub use toml_parser::parser::EventKind as TokenKind;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TomlTokens<'i> {
     pub tokens: Vec<TomlToken<'i>>,
     input_len: usize,
@@ -94,7 +94,7 @@ impl std::fmt::Display for TomlTokens<'_> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TomlToken<'i> {
     pub kind: TokenKind,
     pub encoding: Option<Encoding>,
