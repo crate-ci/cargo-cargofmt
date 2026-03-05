@@ -1,4 +1,5 @@
 use crate::toml::Table;
+use crate::toml::TomlToken;
 use crate::toml::TomlTokens;
 
 /// Reorder table sections so that every child table immediately follows its
@@ -29,7 +30,61 @@ use crate::toml::TomlTokens;
 /// that out.
 #[tracing::instrument(skip_all)]
 pub fn sort_table_hierarchy(tokens: &mut TomlTokens<'_>) {
-    let _ = tokens;
+    let tables = Table::new(tokens);
+    if tables.len() <= 1 {
+        return;
+    }
+
+    let sorted = compute_sorted_order(&tables);
+
+    // Nothing to do if the file is already in hierarchy order.
+    if sorted.iter().enumerate().all(|(i, &j)| i == j) {
+        return;
+    }
+
+    // Section i covers tokens[section_starts[i]..section_starts[i+1]].
+    // Using each table's logical start (which includes any adjacent leading
+    // comment) as the boundary keeps comments with their table.
+    let section_starts: Vec<usize> = tables.iter().map(|t| t.span().start).collect();
+    let preamble_end = section_starts[0];
+    let token_count = tokens.len();
+
+    let section_end = |i: usize| -> usize {
+        section_starts
+            .get(i + 1)
+            .copied()
+            .unwrap_or(token_count)
+    };
+
+    let mut new_tokens: Vec<TomlToken<'_>> = Vec::with_capacity(token_count);
+
+    new_tokens.extend_from_slice(&tokens.tokens[0..preamble_end]);
+    for &idx in &sorted {
+        new_tokens.extend_from_slice(&tokens.tokens[section_starts[idx]..section_end(idx)]);
+    }
+
+    tokens.tokens = new_tokens;
+}
+
+// Sort by (effective_position, original_index) so every child ends up in its
+// parent's group without disturbing the relative order of unrelated tables.
+fn compute_sorted_order(tables: &[Table]) -> Vec<usize> {
+    let mut indices: Vec<usize> = (0..tables.len()).collect();
+    indices.sort_by_key(|&i| (effective_position(i, tables), i));
+    indices
+}
+
+// The document index of the earliest ancestor of tables[idx], or idx itself
+// if no ancestor appears in the file.
+fn effective_position(idx: usize, tables: &[Table]) -> usize {
+    let name = tables[idx].name();
+    tables
+        .iter()
+        .enumerate()
+        .filter(|(_, t)| name.starts_with(t.name()))
+        .map(|(i, _)| i)
+        .min()
+        .unwrap_or(idx)
 }
 
 #[cfg(test)]
@@ -58,8 +113,6 @@ mod test {
             panic!("failed to parse\n---\n{actual}\n{result}");
         }
     }
-
-    // ── passthrough cases ──────────────────────────────────────────────────
 
     #[test]
     fn empty_input() {
@@ -130,8 +183,6 @@ foo = "1.0"
 "#]],
         );
     }
-
-    // ── reordering cases ───────────────────────────────────────────────────
 
     #[test]
     fn child_moved_before_unrelated_sibling() {
