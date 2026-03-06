@@ -5,10 +5,15 @@
 #![warn(clippy::print_stdout)]
 
 pub mod config;
+pub mod error;
 pub mod formatting;
 pub mod toml;
 
-pub fn fmt_manifest(raw_input_text: &str, config: config::Config) -> Option<String> {
+pub fn fmt_manifest(
+    raw_input_text: &str,
+    config: config::Config,
+    errors: &mut Vec<error::FormattingError>,
+) -> Option<String> {
     if config.disable_all_formatting {
         return None;
     }
@@ -47,6 +52,14 @@ pub fn fmt_manifest(raw_input_text: &str, config: config::Config) -> Option<Stri
     let mut formatted = tokens.to_string();
 
     formatting::apply_newline_style(config.newline_style, &mut formatted, raw_input_text);
+
+    // Separate pass: run all post-format error checks via error.rs.
+    error::check_errors(
+        &formatted,
+        errors,
+        config.error_on_line_overflow,
+        config.max_width,
+    );
 
     Some(formatted)
 }
