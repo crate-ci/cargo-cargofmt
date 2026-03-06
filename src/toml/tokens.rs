@@ -94,7 +94,7 @@ impl std::fmt::Display for TomlTokens<'_> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TomlToken<'i> {
     pub kind: TokenKind,
     pub encoding: Option<Encoding>,
