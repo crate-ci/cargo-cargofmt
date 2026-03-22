@@ -1,15 +1,61 @@
 use crate::toml::Table;
+use crate::toml::TomlToken;
 use crate::toml::TomlTokens;
 
 #[tracing::instrument(skip_all)]
-pub fn sort_table_hierarchy(_tokens: &mut TomlTokens<'_>) {}
+pub fn sort_table_hierarchy(tokens: &mut TomlTokens<'_>) {
+    let tables = Table::new(tokens);
+    if tables.len() <= 1 {
+        return;
+    }
 
-fn compute_sorted_order(tables: &[Table]) -> Vec<usize> {
-    (0..tables.len()).collect()
+    let sorted = compute_sorted_order(&tables);
+
+    if sorted.iter().enumerate().all(|(i, &j)| i == j) {
+        return;
+    }
+
+    // span().start picks up any leading comment glued to the header.
+    let section_starts: Vec<usize> = tables.iter().map(|t| t.span().start).collect();
+    let preamble_end = section_starts[0];
+    let token_count = tokens.len();
+
+    let section_end =
+        |i: usize| -> usize { section_starts.get(i + 1).copied().unwrap_or(token_count) };
+
+    let mut pool: Vec<Option<TomlToken<'_>>> = tokens.tokens.drain(..).map(Some).collect();
+    let mut new_tokens: Vec<TomlToken<'_>> = Vec::with_capacity(token_count);
+
+    for slot in &mut pool[0..preamble_end] {
+        new_tokens.push(slot.take().unwrap());
+    }
+    for &idx in &sorted {
+        for slot in &mut pool[section_starts[idx]..section_end(idx)] {
+            new_tokens.push(slot.take().unwrap());
+        }
+    }
+
+    tokens.tokens = new_tokens;
 }
 
-fn effective_position(idx: usize, _tables: &[Table]) -> usize {
-    idx
+fn compute_sorted_order(tables: &[Table]) -> Vec<usize> {
+    let mut indices: Vec<usize> = (0..tables.len()).collect();
+    indices.sort_by_key(|&i| {
+        let depth = tables[i].name().len();
+        (effective_position(i, tables), depth, i)
+    });
+    indices
+}
+
+fn effective_position(idx: usize, tables: &[Table]) -> usize {
+    let name = tables[idx].name();
+    tables
+        .iter()
+        .enumerate()
+        .filter(|(_, t)| name.starts_with(t.name()))
+        .min_by_key(|(_, t)| t.name().len())
+        .map(|(i, _)| i)
+        .unwrap_or(idx)
 }
 
 #[cfg(test)]
@@ -123,10 +169,10 @@ bar = "baz"
             str![[r#"
 [package]
 name = "foo"
-[dependencies]
-foo = "1.0"
 [package.metadata]
 bar = "baz"
+[dependencies]
+foo = "1.0"
 
 "#]],
         );
@@ -146,12 +192,12 @@ rust = "warn"
 "#,
             str![[r#"
 [package]
-[dependencies]
-foo = "1.0"
 [package.metadata]
 bar = "baz"
 [package.lints]
 rust = "warn"
+[dependencies]
+foo = "1.0"
 
 "#]],
         );
@@ -168,9 +214,9 @@ rust = "warn"
 "#,
             str![[r#"
 [a]
-[b]
 [a.b]
 [a.b.c]
+[b]
 
 "#]],
         );
@@ -184,8 +230,8 @@ rust = "warn"
 [a]
 "#,
             str![[r#"
-[a.b]
 [a]
+[a.b]
 
 "#]],
         );
@@ -201,8 +247,8 @@ rust = "warn"
 "#,
             str![[r#"
 [a]
-[a.b.c]
 [a.b]
+[a.b.c]
 
 "#]],
         );
@@ -220,8 +266,8 @@ rust = "warn"
             str![[r#"
 key = "value"
 [a]
-[b]
 [a.x]
+[b]
 
 "#]],
         );
@@ -246,11 +292,11 @@ rust = "warn"
 # metadata section
 [package.metadata]
 bar = "baz"
+[package.lints]
+rust = "warn"
 # deps section
 [dependencies]
 foo = "1.0"
-[package.lints]
-rust = "warn"
 
 "#]],
         );
