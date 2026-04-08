@@ -33,6 +33,7 @@ pub fn fmt_manifest(raw_input_text: &str, config: config::Config) -> Option<Stri
     formatting::normalize_strings(&mut tokens);
     formatting::normalize_datetime_separators(&mut tokens);
     formatting::remove_unused_parent_tables(&mut tokens);
+    formatting::sort_dotted_key_hierarchy(&mut tokens);
     formatting::trim_trailing_spaces(&mut tokens);
     formatting::normalize_space_separators(&mut tokens);
     formatting::reflow_arrays(&mut tokens, config.array_width(), config.tab_spaces);
