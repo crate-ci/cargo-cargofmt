@@ -13,7 +13,7 @@ pub struct Table {
 
 impl Table {
     #[tracing::instrument(skip_all)]
-    pub fn new(tokens: &TomlTokens<'_>) -> Vec<Table> {
+    pub fn new(tokens: &TomlTokens<'_>) -> Vec<Self> {
         // First pass: find all headers and their starts (including leading comments)
         let mut header_info: Vec<(usize, usize, bool)> = Vec::new(); // (header_idx, start, is_array)
         let mut indices = TokenIndices::new();
@@ -34,7 +34,7 @@ impl Table {
                 None => tokens.len(),
             };
             let (name, _) = parse_table_name(tokens, header_idx + 1);
-            tables.push(Table {
+            tables.push(Self {
                 name,
                 start,
                 end,

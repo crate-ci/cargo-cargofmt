@@ -6,8 +6,8 @@ pub use toml_parser::parser::EventKind as TokenKind;
 
 #[derive(Debug)]
 pub struct TomlTokens<'i> {
-    pub tokens: Vec<TomlToken<'i>>,
-    input_len: usize,
+    pub(crate) tokens: Vec<TomlToken<'i>>,
+    pub(crate) input_len: usize,
 }
 
 impl<'i> TomlTokens<'i> {
@@ -75,7 +75,7 @@ impl<'i> TomlTokens<'i> {
             .retain(|t| !(matches!(t.kind, TokenKind::Whitespace) && t.raw.is_empty()));
     }
 
-    #[allow(clippy::inherent_to_string_shadow_display)]
+    #[allow(clippy::inherent_to_string_shadow_display, reason = "optimized")]
     pub fn to_string(&self) -> String {
         use std::fmt::Write as _;
 
