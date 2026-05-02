@@ -26,8 +26,8 @@ const COMMA_SPACE_WIDTH: usize = 2;
 #[tracing::instrument]
 pub fn reflow_arrays(tokens: &mut TomlTokens<'_>, array_width: usize, tab_spaces: usize) {
     let mut indices = TokenIndices::new();
-    let mut inline_table_depth = 0usize;
-    let mut nesting_depth = 0usize;
+    let mut inline_table_depth = 0_usize;
+    let mut nesting_depth = 0_usize;
 
     while let Some(i) = indices.next_index(tokens) {
         match tokens.tokens[i].kind {

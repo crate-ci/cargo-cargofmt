@@ -106,7 +106,7 @@ where
         + Send
         + Sync,
 {
-    #![allow(clippy::disallowed_methods)]
+    #![allow(clippy::disallowed_methods, reason = "imitate cargo")]
 
     if env_to_bool(env::var_os("CARGO_LOG_PROFILE").as_deref()) {
         let capture_args = env_to_bool(env::var_os("CARGO_LOG_PROFILE_CAPTURE_ARGS").as_deref());
@@ -162,11 +162,11 @@ pub enum CargoFmtStrategy {
 }
 
 impl CargoFmtStrategy {
-    fn from_opts(opts: &Opts) -> CargoFmtStrategy {
+    fn from_opts(opts: &Opts) -> Self {
         match (opts.format_all, opts.packages.is_empty()) {
-            (false, true) => CargoFmtStrategy::Root,
-            (true, _) => CargoFmtStrategy::All,
-            (false, false) => CargoFmtStrategy::Some(opts.packages.clone()),
+            (false, true) => Self::Root,
+            (true, _) => Self::All,
+            (false, false) => Self::Some(opts.packages.clone()),
         }
     }
 }
@@ -177,10 +177,10 @@ pub struct Target {
     /// A path to the main source file of the target.
     path: PathBuf,
     /// A kind of target (e.g., lib, bin, example, ...).
-    #[allow(unused)]
+    #[allow(unused, reason = "future use")]
     kind: TargetKind,
     /// Rust edition for this target.
-    #[allow(unused)]
+    #[allow(unused, reason = "future use")]
     edition: Edition,
 }
 
@@ -189,7 +189,7 @@ impl Target {
         let path = PathBuf::from(&target.src_path);
         let canonicalized = fs::canonicalize(&path).unwrap_or(path);
 
-        Target {
+        Self {
             path: canonicalized,
             kind: target.kind[0].clone(),
             edition: target.edition,
@@ -198,19 +198,19 @@ impl Target {
 }
 
 impl PartialEq for Target {
-    fn eq(&self, other: &Target) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.path == other.path
     }
 }
 
 impl PartialOrd for Target {
-    fn partial_cmp(&self, other: &Target) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for Target {
-    fn cmp(&self, other: &Target) -> Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         self.path.cmp(&other.path)
     }
 }
