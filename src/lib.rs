@@ -34,6 +34,7 @@ pub fn fmt_manifest(raw_input_text: &str, config: config::Config) -> Option<Stri
     formatting::normalize_datetime_separators(&mut tokens);
     formatting::remove_unused_parent_tables(&mut tokens);
     formatting::trim_trailing_spaces(&mut tokens);
+    formatting::wrap_comment_lines(&mut tokens, config.wrap_comments, config.comment_width);
     formatting::normalize_space_separators(&mut tokens);
     formatting::reflow_arrays(&mut tokens, config.array_width(), config.tab_spaces);
     formatting::constrain_blank_lines(
