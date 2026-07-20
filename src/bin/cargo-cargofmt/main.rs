@@ -8,6 +8,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::str;
 
+use cargo_cargofmt::error;
 use cargo_metadata::Edition;
 use cargo_metadata::Metadata;
 use cargo_metadata::Package;
@@ -289,7 +290,22 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
         .map_err(io::Error::other)
         .map_err(Some)?;
 
-    let Some(formatted) = cargo_cargofmt::fmt_manifest(&raw_input_text, config) else {
+    let mut errors: Vec<error::FormattingError> = Vec::new();
+    let formatted = cargo_cargofmt::fmt_manifest(&raw_input_text, config, &mut errors);
+
+    let has_errors = !errors.is_empty();
+    // Report any line overflow errors.
+    if has_errors {
+        let name = package.manifest_path.as_std_path().to_string_lossy();
+        for err in &errors {
+            anstream::eprintln!("{}", err.display(&name));
+        }
+    }
+
+    let Some(formatted) = formatted else {
+        if has_errors {
+            return Err(None);
+        }
         return Ok(());
     };
 
@@ -314,6 +330,10 @@ fn format_crate(check: bool, package: &Package) -> Result<(), Option<io::Error>>
                 .map_err(io::Error::other)
                 .map_err(Some)?;
         }
+    }
+
+    if has_errors {
+        return Err(None);
     }
 
     Ok(())
