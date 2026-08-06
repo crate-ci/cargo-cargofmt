@@ -20,6 +20,8 @@ pub struct Config {
     pub max_width: usize,
     pub array_width: Option<usize>,
     pub use_small_heuristics: options::UseSmallHeuristics,
+    pub comment_width: usize,
+    pub wrap_comments: bool,
 }
 
 impl Config {
@@ -59,6 +61,8 @@ impl Default for Config {
             max_width: 100,
             array_width: None,
             use_small_heuristics: options::UseSmallHeuristics::default(),
+            comment_width: 80,
+            wrap_comments: false,
         }
     }
 }
