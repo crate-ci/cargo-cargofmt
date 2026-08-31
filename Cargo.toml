@@ -5,7 +5,7 @@ resolver = "2"
 repository = "https://github.com/crate-ci/cargo-cargofmt"
 license = "MIT OR Apache-2.0"
 edition = "2024"
-rust-version = "1.85.0"  # MSRV
+rust-version = "1.95.0"  # MSRV
 include = [
   "/build.rs",
   "/src/**/*",
