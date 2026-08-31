@@ -142,14 +142,14 @@ pre-release-replacements = [
 default = []
 
 [dependencies]
-anstream = "0.6.21"
+anstream = "1.0.0"
 cargo-util = "0.2.20"
 cargo_metadata = "0.19.2"
 clap = { version = "4.6.6", features = ["derive"] }
 clap-cargo = "0.15.2"
 serde = { version = "1.0.229", features = ["derive"] }
-snapbox = { version = "0.6.24", default-features = false, features = ["diff"] }
-toml = { version = "0.9.12", features = ["fast_hash", "preserve_order"] }
+snapbox = { version = "1.2.2", default-features = false, features = ["diff"] }
+toml = { version = "1.1.4", features = ["fast_hash", "preserve_order"] }
 toml_parser = { version = "1.1.3", features = ["simd"] }
 toml_writer = "1.1.2"
 tracing = "0.1.44"
@@ -164,7 +164,7 @@ lazy_static = "1.5.0"
 serde_json = "1.0.151"
 
 [dev-dependencies]
-snapbox = "0.6.24"
+snapbox = "1.2.2"
 
 [lints]
 workspace = true
