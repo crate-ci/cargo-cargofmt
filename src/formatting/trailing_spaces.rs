@@ -3,10 +3,10 @@ use std::borrow::Cow;
 
 #[tracing::instrument]
 pub fn trim_trailing_spaces(tokens: &mut crate::toml::TomlTokens<'_>) {
-    if let Some(last) = tokens.tokens.last_mut() {
-        if last.kind == crate::toml::TokenKind::Whitespace {
-            *last = TomlToken::EMPTY;
-        }
+    if let Some(last) = tokens.tokens.last_mut()
+        && last.kind == crate::toml::TokenKind::Whitespace
+    {
+        *last = TomlToken::EMPTY;
     }
     for i in tokens.indices() {
         if tokens.tokens[i].kind != crate::toml::TokenKind::Newline {

@@ -5,7 +5,7 @@ resolver = "2"
 repository = "https://github.com/crate-ci/cargo-cargofmt"
 license = "MIT OR Apache-2.0"
 edition = "2024"
-rust-version = "1.85.0"  # MSRV
+rust-version = "1.95.0"  # MSRV
 include = [
   "/build.rs",
   "/src/**/*",
@@ -142,18 +142,18 @@ pre-release-replacements = [
 default = []
 
 [dependencies]
-anstream = "0.6.21"
+anstream = "1.0.0"
 cargo-util = "0.2.20"
-cargo_metadata = "0.19.0"
-clap = { version = "4.5.53", features = ["derive"] }
+cargo_metadata = "0.19.2"
+clap = { version = "4.6.6", features = ["derive"] }
 clap-cargo = "0.15.2"
-serde = { version = "1.0.228", features = ["derive"] }
-snapbox = { version = "0.6.23", default-features = false, features = ["diff"] }
-toml = { version = "0.9.8", features = ["fast_hash", "preserve_order"] }
-toml_parser = { version = "1.0.4", features = ["simd"] }
-toml_writer = "1.0.4"
-tracing = "0.1.43"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+serde = { version = "1.0.229", features = ["derive"] }
+snapbox = { version = "1.2.2", default-features = false, features = ["diff"] }
+toml = { version = "1.1.4", features = ["fast_hash", "preserve_order"] }
+toml_parser = { version = "1.1.3", features = ["simd"] }
+toml_writer = "1.1.2"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 unicode-width = "0.2"
 
 [target.'cfg(target_has_atomic = "64")'.dependencies]
@@ -161,10 +161,10 @@ tracing-chrome = "0.7.2"
 
 [target.'cfg(false)'.dependencies]
 lazy_static = "1.5.0"
-serde_json = "1.0.145"
+serde_json = "1.0.151"
 
 [dev-dependencies]
-snapbox = "0.6.23"
+snapbox = "1.2.2"
 
 [lints]
 workspace = true

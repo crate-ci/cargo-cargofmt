@@ -895,10 +895,11 @@ fn find_clearable_post_comma_whitespace(
         let kind = tokens.tokens[i].kind;
         local_depth += depth_delta(kind);
 
-        if kind == TokenKind::ValueSep && local_depth == 0 {
-            if let Some(ws_index) = clearable_whitespace_after(tokens, i, close_index) {
-                result.push(ws_index);
-            }
+        if kind == TokenKind::ValueSep
+            && local_depth == 0
+            && let Some(ws_index) = clearable_whitespace_after(tokens, i, close_index)
+        {
+            result.push(ws_index);
         }
     }
 
