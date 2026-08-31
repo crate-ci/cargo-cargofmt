@@ -8,17 +8,17 @@ pub fn normalize_space_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
         match tokens.tokens[i].kind {
             TokenKind::StdTableOpen | TokenKind::ArrayTableOpen | TokenKind::ArrayOpen => {
                 let next_i = i + 1;
-                if let Some(next) = tokens.tokens.get(next_i) {
-                    if matches!(next.kind, TokenKind::Whitespace) {
-                        tokens.tokens[next_i] = TomlToken::EMPTY;
-                    }
+                if let Some(next) = tokens.tokens.get(next_i)
+                    && matches!(next.kind, TokenKind::Whitespace)
+                {
+                    tokens.tokens[next_i] = TomlToken::EMPTY;
                 }
             }
             TokenKind::StdTableClose | TokenKind::ArrayTableClose | TokenKind::ArrayClose => {
-                if let Some(prev_i) = i.checked_sub(1) {
-                    if matches!(tokens.tokens[prev_i].kind, TokenKind::Whitespace) {
-                        tokens.tokens[prev_i] = TomlToken::EMPTY;
-                    }
+                if let Some(prev_i) = i.checked_sub(1)
+                    && matches!(tokens.tokens[prev_i].kind, TokenKind::Whitespace)
+                {
+                    tokens.tokens[prev_i] = TomlToken::EMPTY;
                 }
             }
             TokenKind::InlineTableOpen => {
@@ -56,16 +56,16 @@ pub fn normalize_space_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
             }
             TokenKind::SimpleKey => {}
             TokenKind::KeySep => {
-                if let Some(prev_i) = i.checked_sub(1) {
-                    if matches!(tokens.tokens[prev_i].kind, TokenKind::Whitespace) {
-                        tokens.tokens[prev_i] = TomlToken::EMPTY;
-                    }
+                if let Some(prev_i) = i.checked_sub(1)
+                    && matches!(tokens.tokens[prev_i].kind, TokenKind::Whitespace)
+                {
+                    tokens.tokens[prev_i] = TomlToken::EMPTY;
                 }
                 let next_i = i + 1;
-                if let Some(next) = tokens.tokens.get(next_i) {
-                    if matches!(next.kind, TokenKind::Whitespace) {
-                        tokens.tokens[next_i] = TomlToken::EMPTY;
-                    }
+                if let Some(next) = tokens.tokens.get(next_i)
+                    && matches!(next.kind, TokenKind::Whitespace)
+                {
+                    tokens.tokens[next_i] = TomlToken::EMPTY;
                 }
             }
             TokenKind::KeyValSep => {
@@ -117,10 +117,10 @@ pub fn normalize_space_separators(tokens: &mut crate::toml::TomlTokens<'_>) {
                     indices.set_next_index(new_i + 1);
                     i = new_i;
                 }
-                if let Some(prev_i) = i.checked_sub(1) {
-                    if matches!(tokens.tokens[prev_i].kind, TokenKind::Whitespace) {
-                        tokens.tokens[prev_i] = TomlToken::EMPTY;
-                    }
+                if let Some(prev_i) = i.checked_sub(1)
+                    && matches!(tokens.tokens[prev_i].kind, TokenKind::Whitespace)
+                {
+                    tokens.tokens[prev_i] = TomlToken::EMPTY;
                 }
                 let next_i = i + 1;
                 if let Some(next) = tokens.tokens.get(next_i) {
