@@ -1,5 +1,6 @@
 mod blank_lines;
 mod datetime;
+mod dotted_keys;
 mod generated;
 mod indent;
 mod newline_style;
@@ -12,6 +13,7 @@ mod unused_parents;
 
 pub use blank_lines::constrain_blank_lines;
 pub use datetime::normalize_datetime_separators;
+pub use dotted_keys::sort_dotted_key_hierarchy;
 pub use generated::is_generated_file;
 pub use indent::normalize_indent;
 pub use newline_style::apply_newline_style;
