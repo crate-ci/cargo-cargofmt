@@ -298,6 +298,7 @@ fn is_standalone_comment(tokens: &TomlTokens<'_>, comment_index: usize, open_ind
 /// Returns `None` if no matching close bracket is found (malformed input).
 fn find_array_close(tokens: &TomlTokens<'_>, open_index: usize) -> Option<usize> {
     let mut depth = 0;
+    #[expect(clippy::needless_range_loop, reason = "keeps it simpler with the return value")]
     for i in open_index..tokens.len() {
         match tokens.tokens[i].kind {
             TokenKind::ArrayOpen => depth += 1,
@@ -352,8 +353,8 @@ fn collect_element_widths(
 ) -> Vec<usize> {
     let mut collector = ElementWidthCollector::new();
 
-    for i in (open_index + 1)..close_index {
-        collector.process_token(&tokens.tokens[i]);
+    for token in &tokens.tokens[(open_index + 1)..close_index] {
+        collector.process_token(token);
     }
 
     collector.widths
@@ -1256,8 +1257,8 @@ fn is_same_line(tokens: &TomlTokens<'_>, from: usize, to: usize) -> bool {
 /// Check if there's a value after the given index.
 fn has_value_after_index(tokens: &TomlTokens<'_>, start: usize, close_index: usize) -> bool {
     let mut local_depth = 0;
-    for i in (start + 1)..close_index {
-        let kind = tokens.tokens[i].kind;
+    for token in &tokens.tokens[(start + 1)..close_index] {
+        let kind = token.kind;
         local_depth += depth_delta(kind);
 
         match kind {
