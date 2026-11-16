@@ -298,7 +298,10 @@ fn is_standalone_comment(tokens: &TomlTokens<'_>, comment_index: usize, open_ind
 /// Returns `None` if no matching close bracket is found (malformed input).
 fn find_array_close(tokens: &TomlTokens<'_>, open_index: usize) -> Option<usize> {
     let mut depth = 0;
-    #[expect(clippy::needless_range_loop, reason = "keeps it simpler with the return value")]
+    #[expect(
+        clippy::needless_range_loop,
+        reason = "keeps it simpler with the return value"
+    )]
     for i in open_index..tokens.len() {
         match tokens.tokens[i].kind {
             TokenKind::ArrayOpen => depth += 1,
